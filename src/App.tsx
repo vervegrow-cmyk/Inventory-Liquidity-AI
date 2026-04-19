@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
+import JSZip from 'jszip';
 
 type Phase = 'upload' | 'select' | 'chatting' | 'done';
 type FileType = 'image' | 'video' | 'spreadsheet';
@@ -8,6 +9,7 @@ interface Product { name: string; category: string; brand: string; }
 interface SpreadsheetProduct {
   name: string; category: string; brand: string;
   rowText: string; details: Record<string, string>;
+  thumbnail?: string;
 }
 interface Message { role: 'user' | 'assistant'; content: string; }
 interface PricingResult {
@@ -112,6 +114,24 @@ async function parseSpreadsheet(file: File): Promise<{ text: string; rows: strin
   });
 }
 
+async function extractExcelImages(file: File): Promise<string[]> {
+  try {
+    const buffer = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(buffer);
+    const mediaFiles = Object.keys(zip.files)
+      .filter(name => /^xl\/media\//i.test(name) && /\.(png|jpe?g|gif|webp|bmp)$/i.test(name))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const urls: string[] = [];
+    for (const path of mediaFiles) {
+      const blob = await zip.files[path].async('blob');
+      urls.push(URL.createObjectURL(blob));
+    }
+    return urls;
+  } catch {
+    return [];
+  }
+}
+
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -199,9 +219,13 @@ export default function App() {
       setFileType('spreadsheet');
       setLoading(true);
       try {
-        const { rows } = await parseSpreadsheet(file);
+        const [{ rows }, images] = await Promise.all([
+          parseSpreadsheet(file),
+          extractExcelImages(file),
+        ]);
         setSpreadsheetRows(rows.slice(0, 6));
         const products = extractProducts(rows);
+        products.forEach((p, i) => { if (images[i]) p.thumbnail = images[i]; });
         setSpreadsheetProducts(products);
       } catch { setError('表格解析失败，请检查文件格式'); }
       finally { setLoading(false); }
@@ -515,44 +539,48 @@ export default function App() {
                   key={i}
                   onClick={() => handleSelectProduct(sp)}
                   disabled={loading}
-                  className="text-left bg-white rounded-2xl border border-slate-200 hover:border-violet-300 hover:shadow-md shadow-sm p-5 transition-all group disabled:opacity-50"
+                  className="text-left bg-white rounded-2xl border border-slate-200 hover:border-violet-300 hover:shadow-md shadow-sm overflow-hidden transition-all group disabled:opacity-50"
                 >
-                  {/* product icon + name */}
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center text-lg flex-shrink-0">
-                      📦
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-800 text-sm leading-snug group-hover:text-violet-700 transition-colors truncate">
-                        {sp.name}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-0.5">{sp.category}</p>
-                    </div>
-                  </div>
-
-                  {/* detail chips */}
-                  <div className="space-y-1.5">
-                    {Object.entries(sp.details).slice(0, 4).map(([k, v]) => (
-                      <div key={k} className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-slate-400 truncate flex-shrink-0 max-w-[45%]">{k}</span>
-                        <span className="text-xs font-medium text-slate-700 truncate">{v}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* CTA */}
-                  <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-violet-600 group-hover:text-violet-700">
-                    {loading ? (
-                      <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                      </svg>
+                  {/* thumbnail */}
+                  <div className="w-full aspect-square bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center overflow-hidden">
+                    {sp.thumbnail ? (
+                      <img src={sp.thumbnail} alt={sp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
+                      <span className="text-4xl opacity-30">📦</span>
                     )}
-                    Start Valuation
+                  </div>
+
+                  <div className="p-4">
+                    {/* name + category */}
+                    <p className="font-semibold text-slate-800 text-sm leading-snug group-hover:text-violet-700 transition-colors truncate">
+                      {sp.name}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5 mb-3">{sp.category}</p>
+
+                    {/* detail chips */}
+                    <div className="space-y-1.5">
+                      {Object.entries(sp.details).slice(0, 3).map(([k, v]) => (
+                        <div key={k} className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-slate-400 truncate flex-shrink-0 max-w-[45%]">{k}</span>
+                          <span className="text-xs font-medium text-slate-700 truncate">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* CTA */}
+                    <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs font-semibold text-violet-600 group-hover:text-violet-700">
+                      {loading ? (
+                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                      )}
+                      Start Valuation →
+                    </div>
                   </div>
                 </button>
               ))}
