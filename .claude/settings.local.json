@@ -7,7 +7,10 @@
       "Bash(npx vercel *)",
       "Bash(npm install *)",
       "Bash(curl -s -X POST http://localhost:3001/api/chat -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"商品信息：名称=拖把，类别=家居清洁用品，品牌=未知\"},{\"role\":\"assistant\",\"content\":\"拖把的成色如何？是否有明显磨损或损坏？\"},{\"role\":\"user\",\"content\":\"没有\"},{\"role\":\"assistant\",\"content\":\"拖把的使用时长是多久？\"},{\"role\":\"user\",\"content\":\"一个月\"}]}')",
-      "Bash(curl -s -X POST http://localhost:3001/api/chat -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"商品信息：名称=拖把，类别=家居清洁用品，品牌=未知\"},{\"role\":\"assistant\",\"content\":\"拖把的成色如何？是否有明显磨损或损坏？\"},{\"role\":\"user\",\"content\":\"没有\"},{\"role\":\"assistant\",\"content\":\"拖把的使用时长是多久？\"},{\"role\":\"user\",\"content\":\"一个月\"},{\"role\":\"assistant\",\"content\":\"商品的包装情况如何？\"},{\"role\":\"user\",\"content\":\"有原包装\"}]}')"
+      "Bash(curl -s -X POST http://localhost:3001/api/chat -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"商品信息：名称=拖把，类别=家居清洁用品，品牌=未知\"},{\"role\":\"assistant\",\"content\":\"拖把的成色如何？是否有明显磨损或损坏？\"},{\"role\":\"user\",\"content\":\"没有\"},{\"role\":\"assistant\",\"content\":\"拖把的使用时长是多久？\"},{\"role\":\"user\",\"content\":\"一个月\"},{\"role\":\"assistant\",\"content\":\"商品的包装情况如何？\"},{\"role\":\"user\",\"content\":\"有原包装\"}]}')",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
