@@ -29,7 +29,7 @@ export default function App() {
   const [fileType, setFileType] = useState<FileType>('image');
 
   // Single-image / video state (also used as "current" image after group select)
-  const [imageBase64, setImageBase64] = useState('');
+  const [, setImageBase64] = useState('');
   const [imagePreview, setImagePreview] = useState('');
 
   // Multi-image state
@@ -241,13 +241,13 @@ export default function App() {
       for (const file of files) {
         const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
         if (['xlsx', 'xls', 'csv'].includes(ext)) {
-          const { products } = await parseSpreadsheet(file);
-          const summary = products.slice(0, 10).map(p => `${p.name}(${p.brand})`).join('、');
+          const { text } = await parseSpreadsheet(file);
+          const summary = text.split('\n').slice(0, 8).join(' / ');
           attachments.push({ type: 'spreadsheet', preview: '', name: file.name });
           contextParts.push(`【补充表格 ${file.name}】${summary}`);
         } else if (['mp4', 'mov', 'webm'].includes(ext)) {
-          const frameBase64 = await extractVideoFrame(file);
-          attachments.push({ type: 'video', preview: frameBase64, name: file.name });
+          const { preview: framePreview } = await extractVideoFrame(file);
+          attachments.push({ type: 'video', preview: framePreview, name: file.name });
           contextParts.push(`【补充视频 ${file.name}】`);
         } else {
           const base64 = await readFileAsDataUrl(file);

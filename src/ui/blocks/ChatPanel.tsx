@@ -179,7 +179,11 @@ export function ChatPanel({
                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs flex-shrink-0 mb-0.5">🤖</div>
                   )}
                   <div className={`max-w-[80%] rounded-2xl text-sm leading-relaxed overflow-hidden ${
-                    msg.role === 'user' ? 'bg-[#0f172a] text-white rounded-br-sm' : 'bg-slate-100 text-slate-800 rounded-bl-sm'
+                    msg.role === 'user'
+                      ? msg.attachments?.length
+                        ? 'bg-white border border-slate-200 text-slate-800 rounded-br-sm'
+                        : 'bg-[#0f172a] text-white rounded-br-sm'
+                      : 'bg-slate-100 text-slate-800 rounded-bl-sm'
                   }`}>
                     {/* Attachments grid */}
                     {msg.attachments && msg.attachments.length > 0 && (
