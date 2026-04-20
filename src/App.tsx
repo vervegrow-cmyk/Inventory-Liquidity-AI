@@ -32,8 +32,13 @@ function readStoredView(): AppView {
 }
 
 const _vs = (() => {
-  try { const r = sessionStorage.getItem('valuation-session'); return r ? JSON.parse(r) : null; }
-  catch { return null; }
+  try {
+    const r = sessionStorage.getItem('valuation-session');
+    if (!r) return null;
+    const d = JSON.parse(r);
+    if (!d || typeof d !== 'object' || !['select', 'chatting'].includes(d.phase)) return null;
+    return d;
+  } catch { return null; }
 })();
 
 function saveSession(data: object) {
@@ -629,10 +634,10 @@ export default function App() {
 
         {/* ── Phase: select / chatting — unified sidebar+chat layout ── */}
         {(phase === 'select' || phase === 'chatting') && (
-          <div className="flex gap-4 items-start max-w-4xl mx-auto">
+          <div className="flex gap-5 items-start w-full">
 
             {/* Left: product list */}
-            <div className="w-56 flex-shrink-0">
+            <div className="w-64 flex-shrink-0">
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2 px-0.5">
                 {fromSpreadsheet
                   ? `Products (${spreadsheetProducts.length})`
@@ -643,27 +648,27 @@ export default function App() {
                 {fromSpreadsheet
                   ? spreadsheetProducts.map((sp, i) => (
                       <button key={i} onClick={() => handleSelectProduct(sp)} disabled={loading || addingProduct}
-                        className={`w-full text-left flex items-center gap-2.5 p-2.5 rounded-xl border transition-all ${
+                        className={`w-full text-left flex items-center gap-3 p-3 rounded-xl border transition-all ${
                           selectedSP === sp ? 'border-violet-300 bg-violet-50 shadow-sm' : 'border-transparent bg-white hover:border-slate-200'
                         }`}>
-                        <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 flex items-center justify-center">
+                        <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 flex items-center justify-center">
                           {sp.thumbnail
                             ? <img src={sp.thumbnail} alt={sp.name} className="w-full h-full object-cover" />
-                            : <span className="text-base opacity-30">📦</span>}
+                            : <span className="text-lg opacity-30">📦</span>}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-semibold truncate ${selectedSP === sp ? 'text-violet-700' : 'text-slate-800'}`}>{sp.name}</p>
-                          <p className="text-[10px] text-slate-400 truncate">{sp.category}</p>
+                          <p className={`text-sm font-semibold truncate ${selectedSP === sp ? 'text-violet-700' : 'text-slate-800'}`}>{sp.name}</p>
+                          <p className="text-xs text-slate-400 truncate">{sp.category}</p>
                         </div>
-                        {selectedSP === sp && <div className="w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0 animate-pulse" />}
+                        {selectedSP === sp && <div className="w-2 h-2 rounded-full bg-violet-500 flex-shrink-0 animate-pulse" />}
                       </button>
                     ))
                   : productGroups.map((g, i) => (
                       <button key={i} onClick={() => handleSelectGroup(g)} disabled={loading || addingProduct}
-                        className={`w-full text-left flex items-center gap-2.5 p-2.5 rounded-xl border transition-all ${
+                        className={`w-full text-left flex items-center gap-3 p-3 rounded-xl border transition-all ${
                           selectedGroup === g ? 'border-violet-300 bg-violet-50 shadow-sm' : 'border-transparent bg-white hover:border-slate-200'
                         }`}>
-                        <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
+                        <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
                           {g.indices.length === 1
                             ? <img src={uploadedImages[g.indices[0]]?.preview} alt={g.name} className="w-full h-full object-cover" />
                             : <div className="w-full h-full grid grid-cols-2 gap-0.5">
@@ -673,10 +678,10 @@ export default function App() {
                               </div>}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-semibold truncate ${selectedGroup === g ? 'text-violet-700' : 'text-slate-800'}`}>{g.name}</p>
-                          <p className="text-[10px] text-slate-400">{g.indices.length} 图</p>
+                          <p className={`text-sm font-semibold truncate ${selectedGroup === g ? 'text-violet-700' : 'text-slate-800'}`}>{g.name}</p>
+                          <p className="text-xs text-slate-400">{g.indices.length} 图</p>
                         </div>
-                        {selectedGroup === g && <div className="w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0 animate-pulse" />}
+                        {selectedGroup === g && <div className="w-2 h-2 rounded-full bg-violet-500 flex-shrink-0 animate-pulse" />}
                       </button>
                     ))
                 }
@@ -716,7 +721,7 @@ export default function App() {
               {(phase === 'chatting' || hasSelection) ? (
                 <ChatPanel {...chatPanelProps} compact />
               ) : (
-                <div className="bg-white rounded-2xl border border-slate-200 h-[520px] flex flex-col items-center justify-center text-center px-6 gap-3">
+                <div className="bg-white rounded-2xl border border-slate-200 h-[640px] flex flex-col items-center justify-center text-center px-6 gap-3">
                   {error && <p className="text-sm text-red-500">⚠️ {error}</p>}
                   <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-2xl">👈</div>
                   <p className="text-sm font-semibold text-slate-700">

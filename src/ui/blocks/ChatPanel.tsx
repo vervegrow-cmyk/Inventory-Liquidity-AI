@@ -102,7 +102,7 @@ export function ChatPanel({
   const canSend = (userInput.trim().length > 0 || pending.length > 0) && !loading;
 
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col ${compact ? 'h-[520px]' : 'h-[580px] sm:h-[640px]'}`}>
+    <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col ${compact ? 'h-[640px]' : 'h-[640px]'}`}>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 bg-[#0f172a] rounded-t-2xl flex-shrink-0">
         {thumbnail ? (
