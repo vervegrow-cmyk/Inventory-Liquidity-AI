@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { RecoveryCartItem, RecoveryOrder, RecoveryMethod, RecoveryStatus } from '../types/recovery';
+import type { RecoveryCartItem, RecoveryOrder, RecoveryMethod, RecoveryStatus, PickupInfo } from '../types/recovery';
 
 interface RecoveryState {
   cart: RecoveryCartItem[];
@@ -12,13 +12,15 @@ interface RecoveryState {
     item: RecoveryCartItem,
     method: RecoveryMethod,
     address?: string,
-    scheduledTime?: string
+    scheduledTime?: string,
+    pickupInfo?: PickupInfo
   ) => RecoveryOrder;
   batchCreateOrders: (
     items: RecoveryCartItem[],
     method: RecoveryMethod,
     address?: string,
-    scheduledTime?: string
+    scheduledTime?: string,
+    pickupInfo?: PickupInfo
   ) => RecoveryOrder[];
   updateOrderStatus: (id: string, status: RecoveryStatus, extra?: Partial<RecoveryOrder>) => void;
   removeOrder: (id: string) => void;
@@ -50,7 +52,7 @@ export const useRecoveryStore = create<RecoveryState>()(
 
       clearCart: () => set({ cart: [] }),
 
-      createOrder: (item, method, address, scheduledTime) => {
+      createOrder: (item, method, address, scheduledTime, pickupInfo) => {
         const order: RecoveryOrder = {
           id: genId(),
           productName: item.productName,
@@ -66,6 +68,7 @@ export const useRecoveryStore = create<RecoveryState>()(
           status: 'pending',
           address,
           scheduledTime,
+          pickupInfo,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -76,7 +79,7 @@ export const useRecoveryStore = create<RecoveryState>()(
         return order;
       },
 
-      batchCreateOrders: (items, method, address, scheduledTime) => {
+      batchCreateOrders: (items, method, address, scheduledTime, pickupInfo) => {
         const newOrders: RecoveryOrder[] = items.map(item => ({
           id: genId(),
           productName: item.productName,
@@ -92,6 +95,7 @@ export const useRecoveryStore = create<RecoveryState>()(
           status: 'pending' as RecoveryStatus,
           address,
           scheduledTime,
+          pickupInfo,
           createdAt: now(),
           updatedAt: now(),
         }));

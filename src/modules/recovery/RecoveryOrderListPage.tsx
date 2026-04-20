@@ -156,6 +156,32 @@ export function RecoveryOrderListPage({ onBack }: Props) {
                         <p className="text-slate-700 mt-0.5">{order.address}</p>
                       </div>
                     )}
+                    {order.pickupInfo && (
+                      <>
+                        <div className="col-span-2">
+                          <p className="text-slate-400 font-semibold uppercase text-[9px] tracking-widest">上门地址</p>
+                          <p className="text-slate-700 mt-0.5">{order.pickupInfo.address}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400 font-semibold uppercase text-[9px] tracking-widest">联系人</p>
+                          <p className="text-slate-700 mt-0.5">{order.pickupInfo.contactName}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400 font-semibold uppercase text-[9px] tracking-widest">联系电话</p>
+                          <p className="text-slate-700 mt-0.5">{order.pickupInfo.contactPhone}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-slate-400 font-semibold uppercase text-[9px] tracking-widest">预约时间</p>
+                          <p className="text-slate-700 mt-0.5">{new Date(order.pickupInfo.timeSlot).toLocaleString('zh-CN')}</p>
+                        </div>
+                        {order.pickupInfo.notes && (
+                          <div className="col-span-2">
+                            <p className="text-slate-400 font-semibold uppercase text-[9px] tracking-widest">备注</p>
+                            <p className="text-slate-700 mt-0.5">{order.pickupInfo.notes}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {/* Tracking number */}

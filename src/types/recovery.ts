@@ -1,6 +1,14 @@
 export type RecoveryStatus = 'pending' | 'scheduled' | 'shipped' | 'in_transit' | 'received' | 'paid';
 export type RecoveryMethod = 'pickup' | 'shipping';
 
+export interface PickupInfo {
+  address: string;
+  contactName: string;
+  contactPhone: string;
+  timeSlot: string;
+  notes?: string;
+}
+
 export interface RecoveryCartItem {
   id: string;
   productName: string;
@@ -34,6 +42,7 @@ export interface RecoveryOrder {
   scheduledTime?: string;
   trackingNumber?: string;
   notes?: string;
+  pickupInfo?: PickupInfo;
   createdAt: string;
   updatedAt: string;
 }
