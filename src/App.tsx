@@ -100,7 +100,7 @@ export default function App() {
       setMessages([...initMessages, { role: 'assistant', content: data.reason }]);
       if (changePhase) setPhase('done');
     } else {
-      setMessages([...initMessages, { role: 'assistant', content: data.question }]);
+      setMessages([...initMessages, { role: 'assistant', content: data.reply }]);
       if (changePhase) setPhase('chatting');
     }
   }
@@ -155,7 +155,7 @@ export default function App() {
         setMessages([...newMessages, { role: 'assistant', content: data.reason }]);
         if (phase !== 'select') setPhase('done');
       } else {
-        setMessages([...newMessages, { role: 'assistant', content: data.question }]);
+        setMessages([...newMessages, { role: 'assistant', content: data.reply }]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '发送失败，请重试');
