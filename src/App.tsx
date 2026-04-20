@@ -322,38 +322,73 @@ export default function App() {
     setAddingProduct(true);
     setError('');
     try {
-      const dataUrls = await Promise.all(files.map(readFileAsDataUrl));
-      const newImages: UploadedImage[] = await Promise.all(
-        dataUrls.map(async u => {
-          const b64 = await compressImageBase64(u.split(',')[1]);
-          const thumb = await compressImageBase64(b64, 160, 0.6);
-          return { base64: b64, preview: u, thumbnail: `data:image/jpeg;base64,${thumb}` };
-        })
-      );
-      const identified: Product[] = [];
-      for (const img of newImages) {
-        const r = await callIdentifyApi({ image: img.base64 });
-        identified.push(r);
+      // ── Spreadsheet files ──────────────────────────────────────────────────
+      for (const file of files.filter(isSpreadsheetFile)) {
+        if (file.size > 20 * 1024 * 1024) { setError('表格文件不能超过 20MB'); continue; }
+        const [{ rows }, imgs] = await Promise.all([parseSpreadsheet(file), extractExcelImages(file)]);
+        const products = extractProducts(rows);
+        products.forEach((p, i) => { if (imgs[i]) p.thumbnail = imgs[i]; });
+        setSpreadsheetProducts(prev => [...prev, ...products]);
       }
-      if (fromSpreadsheet) {
-        const newSPs: SpreadsheetProduct[] = identified.map((p, i) => ({
-          name: p.name, category: p.category, brand: p.brand,
-          rowText: `名称=${p.name}，类别=${p.category}，品牌=${p.brand}`,
-          details: { '名称': p.name, '类别': p.category, '品牌': p.brand },
-          thumbnail: newImages[i]?.thumbnail,
-        }));
-        setSpreadsheetProducts(prev => [...prev, ...newSPs]);
-      } else {
-        const offset = uploadedImages.length;
-        let newGroups: ProductGroup[];
-        if (identified.length === 1) {
-          newGroups = [{ name: identified[0].name, category: identified[0].category, brand: identified[0].brand, indices: [offset], thumbnail: newImages[0]?.thumbnail || '' }];
+
+      // ── Video files ────────────────────────────────────────────────────────
+      for (const file of files.filter(f => f.type.startsWith('video/'))) {
+        const { base64, preview } = await extractVideoFrame(file);
+        const thumb = await compressImageBase64(base64, 160, 0.6);
+        const thumbnail = `data:image/jpeg;base64,${thumb}`;
+        const identified = await callIdentifyApi({ image: base64 });
+        if (fromSpreadsheet) {
+          setSpreadsheetProducts(prev => [...prev, {
+            name: identified.name, category: identified.category, brand: identified.brand,
+            rowText: `名称=${identified.name}，类别=${identified.category}，品牌=${identified.brand}`,
+            details: { '名称': identified.name, '类别': identified.category, '品牌': identified.brand },
+            thumbnail,
+          }]);
         } else {
-          const grouped = await callGroupApi(identified);
-          newGroups = grouped.map(g => ({ ...g, indices: g.indices.map(i => i + offset), thumbnail: newImages[g.indices[0] ?? 0]?.thumbnail || '' }));
+          const newImg: UploadedImage = { base64, preview, thumbnail };
+          const offset = uploadedImages.length;
+          setUploadedImages(prev => [...prev, newImg]);
+          setProductGroups(prev => [...prev, { name: identified.name, category: identified.category, brand: identified.brand, indices: [offset], thumbnail }]);
         }
-        setUploadedImages(prev => [...prev, ...newImages]);
-        setProductGroups(prev => [...prev, ...newGroups]);
+      }
+
+      // ── Image files ────────────────────────────────────────────────────────
+      const imageFiles = files.filter(f => f.type.startsWith('image/'));
+      if (imageFiles.length) {
+        for (const f of imageFiles) {
+          if (f.size > 10 * 1024 * 1024) { setError('每张图片不能超过 10MB'); return; }
+        }
+        const dataUrls = await Promise.all(imageFiles.map(readFileAsDataUrl));
+        const newImages: UploadedImage[] = await Promise.all(
+          dataUrls.map(async u => {
+            const b64 = await compressImageBase64(u.split(',')[1]);
+            const thumb = await compressImageBase64(b64, 160, 0.6);
+            return { base64: b64, preview: u, thumbnail: `data:image/jpeg;base64,${thumb}` };
+          })
+        );
+        const identified: Product[] = [];
+        for (const img of newImages) {
+          identified.push(await callIdentifyApi({ image: img.base64 }));
+        }
+        if (fromSpreadsheet) {
+          setSpreadsheetProducts(prev => [...prev, ...identified.map((p, i) => ({
+            name: p.name, category: p.category, brand: p.brand,
+            rowText: `名称=${p.name}，类别=${p.category}，品牌=${p.brand}`,
+            details: { '名称': p.name, '类别': p.category, '品牌': p.brand },
+            thumbnail: newImages[i]?.thumbnail,
+          }))]);
+        } else {
+          const offset = uploadedImages.length;
+          let newGroups: ProductGroup[];
+          if (identified.length === 1) {
+            newGroups = [{ name: identified[0].name, category: identified[0].category, brand: identified[0].brand, indices: [offset], thumbnail: newImages[0]?.thumbnail || '' }];
+          } else {
+            const grouped = await callGroupApi(identified);
+            newGroups = grouped.map(g => ({ ...g, indices: g.indices.map(i => i + offset), thumbnail: newImages[g.indices[0] ?? 0]?.thumbnail || '' }));
+          }
+          setUploadedImages(prev => [...prev, ...newImages]);
+          setProductGroups(prev => [...prev, ...newGroups]);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '识别失败，请重试');
@@ -785,7 +820,7 @@ export default function App() {
                   ref={addProductInputRef}
                   type="file"
                   multiple
-                  accept="image/*"
+                  accept="image/*,video/*,.csv,.xlsx,.xls"
                   className="hidden"
                   onChange={e => {
                     const files = Array.from(e.target.files ?? []);
