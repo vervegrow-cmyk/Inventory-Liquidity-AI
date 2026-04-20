@@ -66,12 +66,12 @@ export default function App() {
   // Single-image / video state (also used as "current" image after group select)
   const [imageBase64, setImageBase64] = useState<string>(_vs?.imageBase64 ?? '');
   const [imagePreview, setImagePreview] = useState<string>(
-    _vs?.imageBase64 ? `data:image/jpeg;base64,${_vs.imageBase64}` : ''
+    _vs?.imagePreview ?? (_vs?.imageBase64 ? `data:image/jpeg;base64,${_vs.imageBase64}` : '')
   );
 
   // Multi-image state
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>(
-    () => (_vs?.uploadedImages ?? []).map((b64: string) => ({ base64: b64, preview: `data:image/jpeg;base64,${b64}` }))
+    () => (_vs?.uploadedImages ?? []).map((url: string) => ({ base64: url.split(',')[1] ?? url, preview: url }))
   );
   const [productGroups, setProductGroups] = useState<ProductGroup[]>(_vs?.productGroups ?? []);
   const [selectedGroup, setSelectedGroup] = useState<ProductGroup | null>(
@@ -101,8 +101,8 @@ export default function App() {
   useEffect(() => {
     if (phase === 'upload') { clearSession(); return; }
     saveSession({
-      phase, fileType, imageBase64,
-      uploadedImages: uploadedImages.map(img => img.base64),
+      phase, fileType, imageBase64, imagePreview,
+      uploadedImages: uploadedImages.map(img => `data:image/jpeg;base64,${img.base64}`),
       productGroups,
       spreadsheetProducts: spreadsheetProducts.map(sp => ({ ...sp, thumbnail: sp.thumbnail?.startsWith('blob:') ? undefined : sp.thumbnail })),
       spreadsheetRows,
