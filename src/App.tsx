@@ -251,7 +251,7 @@ export default function App() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#f0f2f7]">
+    <div className="min-h-screen bg-[#f0f2f7] flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#0f172a] shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
@@ -272,7 +272,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 flex-1 w-full">
 
         {/* ── Phase: upload ── */}
         {phase === 'upload' && (
@@ -682,7 +682,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white mt-10">
+      <footer className="border-t border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
           <div className="flex items-center gap-3">
             <div className="w-5 h-5 rounded bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-[10px]">📦</div>
