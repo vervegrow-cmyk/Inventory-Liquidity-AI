@@ -51,6 +51,9 @@ export default function Editor() {
       try { parsed = JSON.parse(note.content); } catch { parsed = null; }
     }
     editor.commands.setContent(parsed ?? '');
+    // Intentionally omit note.content: we only re-sync on note switch (ID change).
+    // Including note.content would reset the editor on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id, editor]);
 
   const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

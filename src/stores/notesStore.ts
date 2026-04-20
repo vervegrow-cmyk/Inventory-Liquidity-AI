@@ -76,12 +76,16 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       state.folders.filter(f => f.parentId === fid).forEach(f => collect(f.id));
     };
     collect(id);
-    set(s => ({
-      folders: s.folders.filter(f => !deletedIds.has(f.id)),
-      notes: s.notes.filter(n => n.folderId === null || !deletedIds.has(n.folderId)),
-      activeNoteId: deletedIds.has(s.activeFolderId ?? '') ? null : s.activeNoteId,
-      activeFolderId: deletedIds.has(s.activeFolderId ?? '') ? null : s.activeFolderId,
-    }));
+    set(s => {
+      const activeNote = s.notes.find(n => n.id === s.activeNoteId);
+      const activeNoteDeleted = activeNote?.folderId != null && deletedIds.has(activeNote.folderId);
+      return {
+        folders: s.folders.filter(f => !deletedIds.has(f.id)),
+        notes: s.notes.filter(n => n.folderId === null || !deletedIds.has(n.folderId)),
+        activeNoteId: activeNoteDeleted ? null : s.activeNoteId,
+        activeFolderId: deletedIds.has(s.activeFolderId ?? '') ? null : s.activeFolderId,
+      };
+    });
   },
 
   createNote: async (folderId = null) => {

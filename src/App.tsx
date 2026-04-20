@@ -27,7 +27,12 @@ export default function App() {
   const [uploadKey, setUploadKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  function revokeThumbnails(products: SpreadsheetProduct[]) {
+    products.forEach(p => { if (p.thumbnail?.startsWith('blob:')) URL.revokeObjectURL(p.thumbnail); });
+  }
+
   function reset() {
+    revokeThumbnails(spreadsheetProducts);
     setPhase('upload'); setFileType('image');
     setImageBase64(''); setImagePreview('');
     setSpreadsheetRows([]); setSpreadsheetProducts([]);
@@ -49,7 +54,9 @@ export default function App() {
     if (!file) return;
     setError('');
     setImageBase64(''); setImagePreview('');
-    setSpreadsheetRows([]); setSpreadsheetProducts([]);
+    setSpreadsheetRows([]);
+    revokeThumbnails(spreadsheetProducts);
+    setSpreadsheetProducts([]);
 
     const isImage = file.type.startsWith('image/');
     const isVideo = file.type.startsWith('video/');

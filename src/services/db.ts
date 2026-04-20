@@ -39,7 +39,8 @@ export async function deleteFolder(id: string): Promise<void> {
 
 export async function getNotesByFolder(folderId: string | null): Promise<Note[]> {
   if (folderId === null) {
-    return db.notes.where('folderId').equals('').toArray();
+    // IndexedDB doesn't reliably index null — use filter() instead of where().equals(null)
+    return db.notes.filter(n => n.folderId === null).toArray();
   }
   return db.notes.where('folderId').equals(folderId).reverse().sortBy('updatedAt');
 }
