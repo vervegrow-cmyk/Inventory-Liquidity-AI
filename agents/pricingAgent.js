@@ -39,7 +39,11 @@ const SYSTEM_PROMPT = `你是一位经验丰富的二手库存收货商，名叫
 {"reply":"自然的对话回复，包含下一个问题","done":false}
 
 估价完成时输出：
-{"reply":"好的，根据您说的情况，给您报个价：","estimated_price":"$10-$15","resale_price":"$20-$30","quick_sale_price":"$8-$10","confidence":"high/medium/low","reason":"估价依据的具体说明","done":true}
+{"reply":"好的，根据您说的情况，给您报个价：","estimated_price":"$10-$15","resale_price":"$20-$30","quick_sale_price":"$8-$10","confidence":"high/medium/low","reason":"估价依据的具体说明","recommended_method":"pickup或shipping","method_reason":"推荐该回收方式的简短原因（如：商品体积小，邮寄更方便）","done":true}
+
+【recommended_method 判断规则】
+- pickup（上门自提）：大件商品（家电、家具、大型设备）、批量较多、搬运不便
+- shipping（邮寄回收）：小件商品（手机、配件、衣物、小电器）、数量少、易于打包
 
 【补充资料处理 - 严格按以下步骤执行】
 

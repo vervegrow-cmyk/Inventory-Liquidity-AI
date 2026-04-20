@@ -4,6 +4,7 @@ import { pricingController } from './features/pricing/controller.js';
 import { identifyController } from './features/identify/controller.js';
 import { generateController } from './features/generate/controller.js';
 import { groupController } from './features/identify/groupController.js';
+import { recoveryCreateController, recoveryBatchCreateController, recoveryListController, recoveryStatusController } from './features/recovery/controller.js';
 import { logRequest, logError } from './backend/middlewares/logger.js';
 
 const PORT = 3001;
@@ -35,10 +36,14 @@ function httpStatus(result) {
 
 // Primary routes following /api/{module}/{action} convention
 const ROUTES = {
-  '/api/pricing/calculate': pricingController,
-  '/api/identify/analyze':  identifyController,
-  '/api/identify/group':    groupController,
-  '/api/generate/content':  generateController,
+  '/api/pricing/calculate':      pricingController,
+  '/api/identify/analyze':       identifyController,
+  '/api/identify/group':         groupController,
+  '/api/generate/content':       generateController,
+  '/api/recovery/create':        recoveryCreateController,
+  '/api/recovery/batch-create':  recoveryBatchCreateController,
+  '/api/recovery/list':          recoveryListController,
+  '/api/recovery/status':        recoveryStatusController,
 };
 
 // Legacy aliases — kept so old frontend calls still work during migration

@@ -25,6 +25,7 @@ export interface ChatPanelProps {
   onClose: () => void;
   onReset: () => void;
   onGoToSelect: () => void;
+  onAcceptQuote?: () => void;
 }
 
 interface PendingPreview {
@@ -37,7 +38,7 @@ interface PendingPreview {
 export function ChatPanel({
   product, messages, loading, result, error, userInput,
   phase, thumbnail, compact = false, fromSpreadsheet,
-  onSendAnswer, onSendWithAttachments, onInputChange, onClose, onReset, onGoToSelect,
+  onSendAnswer, onSendWithAttachments, onInputChange, onClose, onReset, onGoToSelect, onAcceptQuote,
 }: ChatPanelProps) {
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -142,6 +143,14 @@ export function ChatPanel({
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">AI 分析</p>
             <p className="text-xs text-slate-700 leading-relaxed">{result.reason}</p>
           </div>
+          {onAcceptQuote && (
+            <button
+              onClick={onAcceptQuote}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2"
+            >
+              <span>✅</span> 同意报价 · 安排回收
+            </button>
+          )}
           <div className="grid grid-cols-2 gap-2">
             {phase === 'select' ? (
               <button onClick={onClose} className="py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-semibold hover:border-slate-300 transition-all">

@@ -6,6 +6,12 @@ import { callIdentifyApi } from './services/identifyApi';
 import { callGroupApi } from './services/groupApi';
 import { ChatPanel } from './ui/blocks/ChatPanel';
 import { PriceCard } from './ui/components/PriceCard';
+import { RecoveryMethodModal } from './modules/recovery/RecoveryMethodModal';
+import { RecoveryCartPage } from './modules/recovery/RecoveryCartPage';
+import { RecoveryOrderListPage } from './modules/recovery/RecoveryOrderListPage';
+import { useRecoveryStore } from './stores/recoveryStore';
+
+type AppView = 'valuation' | 'cart' | 'orders';
 
 const CONFIDENCE_LABEL: Record<string, string> = {
   high: '高 ✅', medium: '中 ⚠️', low: '低 ❓',
@@ -25,6 +31,9 @@ function isSpreadsheetFile(file: File): boolean {
 }
 
 export default function App() {
+  const [appView, setAppView] = useState<AppView>('valuation');
+  const [showMethodModal, setShowMethodModal] = useState(false);
+  const cartCount = useRecoveryStore(s => s.cart.length);
   const [phase, setPhase] = useState<Phase>('upload');
   const [fileType, setFileType] = useState<FileType>('image');
 
@@ -313,6 +322,7 @@ export default function App() {
     onClose: closeChatPanel,
     onReset: reset,
     onGoToSelect: () => { setPhase('select'); setSelectedSP(null); setSelectedGroup(null); setMessages([]); setResult(null); },
+    onAcceptQuote: result ? () => setShowMethodModal(true) : undefined,
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -328,18 +338,73 @@ export default function App() {
               Inventory Liquidity <span className="text-violet-400">AI</span>
             </span>
           </div>
-          {phase !== 'upload' && (
+          <div className="flex items-center gap-2">
+            {/* Recovery nav */}
             <button
-              onClick={reset}
-              className="flex items-center gap-1.5 text-xs sm:text-sm px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all"
+              onClick={() => setAppView('orders')}
+              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-all ${appView === 'orders' ? 'bg-white/20 text-white' : 'bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white'}`}
             >
-              <span>↺</span> New
+              📋 订单
             </button>
-          )}
+            <button
+              onClick={() => setAppView('cart')}
+              className={`relative flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-all ${appView === 'cart' ? 'bg-white/20 text-white' : 'bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white'}`}
+            >
+              🛒 待回收
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center">
+                  {cartCount > 9 ? '9+' : cartCount}
+                </span>
+              )}
+            </button>
+            {appView !== 'valuation' ? (
+              <button
+                onClick={() => setAppView('valuation')}
+                className="flex items-center gap-1.5 text-xs sm:text-sm px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all"
+              >
+                ← 估价
+              </button>
+            ) : phase !== 'upload' && (
+              <button
+                onClick={reset}
+                className="flex items-center gap-1.5 text-xs sm:text-sm px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all"
+              >
+                <span>↺</span> New
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
+      {/* Recovery Method Modal */}
+      {showMethodModal && result && (
+        <RecoveryMethodModal
+          result={result}
+          product={product}
+          thumbnail={selectedSP?.thumbnail || imagePreview || undefined}
+          onClose={() => setShowMethodModal(false)}
+          onAddedToCart={() => { setShowMethodModal(false); }}
+          onOrderCreated={() => { setShowMethodModal(false); setAppView('orders'); }}
+        />
+      )}
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 flex-1 w-full">
+
+        {/* ── App view: cart ── */}
+        {appView === 'cart' && (
+          <RecoveryCartPage
+            onBack={() => setAppView('valuation')}
+            onOrdersView={() => setAppView('orders')}
+          />
+        )}
+
+        {/* ── App view: orders ── */}
+        {appView === 'orders' && (
+          <RecoveryOrderListPage onBack={() => setAppView('valuation')} />
+        )}
+
+        {/* ── App view: valuation ── */}
+        {appView === 'valuation' && <>
 
         {/* ── Phase: upload ── */}
         {phase === 'upload' && (
@@ -745,6 +810,8 @@ export default function App() {
             </div>
           </div>
         )}
+
+        </>}
 
       </main>
 

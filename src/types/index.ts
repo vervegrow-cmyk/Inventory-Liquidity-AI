@@ -75,6 +75,8 @@ export interface PricingResult {
   quick_sale_price: string;
   confidence: string;
   reason: string;
+  recommended_method?: 'pickup' | 'shipping';
+  method_reason?: string;
 }
 
 // ── API Response Envelope ──────────────────────────────────────────────────────
