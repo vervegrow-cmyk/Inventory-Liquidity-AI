@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
-import type { Phase, FileType, Product, SpreadsheetProduct, ChatMessage, PricingResult } from './types';
+import type { Phase, FileType, Product, SpreadsheetProduct, ChatMessage, PricingResult, UploadedImage, ProductGroup } from './types';
 import { extractVideoFrame, parseSpreadsheet, extractExcelImages, extractProducts } from './lib/media';
 import { callPricingApi } from './services/pricingApi';
 import { callIdentifyApi } from './services/identifyApi';
+import { callGroupApi } from './services/groupApi';
 import { ChatPanel } from './ui/blocks/ChatPanel';
 import { PriceCard } from './ui/components/PriceCard';
 
@@ -10,14 +11,38 @@ const CONFIDENCE_LABEL: Record<string, string> = {
   high: '高 ✅', medium: '中 ⚠️', low: '低 ❓',
 };
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target?.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function isSpreadsheetFile(file: File): boolean {
+  return /\.(xlsx?|csv)$/i.test(file.name) || file.type.includes('spreadsheet') || file.type === 'text/csv';
+}
+
 export default function App() {
   const [phase, setPhase] = useState<Phase>('upload');
   const [fileType, setFileType] = useState<FileType>('image');
+
+  // Single-image / video state (also used as "current" image after group select)
   const [imageBase64, setImageBase64] = useState('');
   const [imagePreview, setImagePreview] = useState('');
+
+  // Multi-image state
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
+  const [productGroups, setProductGroups] = useState<ProductGroup[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<ProductGroup | null>(null);
+
+  // Spreadsheet state
   const [spreadsheetRows, setSpreadsheetRows] = useState<string[][]>([]);
   const [spreadsheetProducts, setSpreadsheetProducts] = useState<SpreadsheetProduct[]>([]);
   const [selectedSP, setSelectedSP] = useState<SpreadsheetProduct | null>(null);
+
+  // Chat state
   const [product, setProduct] = useState<Product | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [userInput, setUserInput] = useState('');
@@ -35,6 +60,7 @@ export default function App() {
     revokeThumbnails(spreadsheetProducts);
     setPhase('upload'); setFileType('image');
     setImageBase64(''); setImagePreview('');
+    setUploadedImages([]); setProductGroups([]); setSelectedGroup(null);
     setSpreadsheetRows([]); setSpreadsheetProducts([]);
     setSelectedSP(null); setProduct(null);
     setMessages([]); setUserInput('');
@@ -43,49 +69,51 @@ export default function App() {
   }
 
   function closeChatPanel() {
-    setSelectedSP(null); setProduct(null);
+    setSelectedSP(null); setSelectedGroup(null); setProduct(null);
     setMessages([]); setResult(null); setError('');
   }
 
   // ── File handling ──────────────────────────────────────────────────────────
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
     setError('');
     setImageBase64(''); setImagePreview('');
+    setUploadedImages([]); setProductGroups([]); setSelectedGroup(null);
     setSpreadsheetRows([]);
     revokeThumbnails(spreadsheetProducts);
     setSpreadsheetProducts([]);
 
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    const isSpreadsheet = /\.(xlsx?|csv)$/i.test(file.name) ||
-      file.type.includes('spreadsheet') || file.type === 'text/csv';
+    const allImages = files.every(f => f.type.startsWith('image/'));
+    const firstFile = files[0];
 
-    if (isImage) {
-      if (file.size > 10 * 1024 * 1024) { setError('图片不能超过 10MB'); return; }
+    if (allImages) {
+      for (const f of files) {
+        if (f.size > 10 * 1024 * 1024) { setError('每张图片不能超过 10MB'); return; }
+      }
       setFileType('image');
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const dataUrl = ev.target?.result as string;
-        setImagePreview(dataUrl); setImageBase64(dataUrl.split(',')[1]);
-      };
-      reader.readAsDataURL(file);
-    } else if (isVideo) {
+      const dataUrls = await Promise.all(files.map(readFileAsDataUrl));
+      const images: UploadedImage[] = dataUrls.map(u => ({ base64: u.split(',')[1], preview: u }));
+      setUploadedImages(images);
+      // Pre-set single image state from first image so chatting/done phases work
+      setImageBase64(images[0].base64);
+      setImagePreview(images[0].preview);
+    } else if (firstFile.type.startsWith('video/')) {
       setFileType('video'); setLoading(true);
       try {
-        const { base64, preview } = await extractVideoFrame(file);
+        const { base64, preview } = await extractVideoFrame(firstFile);
         setImageBase64(base64); setImagePreview(preview);
+        setUploadedImages([{ base64, preview }]);
       } catch { setError('视频帧提取失败'); }
       finally { setLoading(false); }
-    } else if (isSpreadsheet) {
-      if (file.size > 20 * 1024 * 1024) { setError('表格文件不能超过 20MB'); return; }
+    } else if (isSpreadsheetFile(firstFile)) {
+      if (firstFile.size > 20 * 1024 * 1024) { setError('表格文件不能超过 20MB'); return; }
       setFileType('spreadsheet'); setLoading(true);
       try {
         const [{ rows }, images] = await Promise.all([
-          parseSpreadsheet(file),
-          extractExcelImages(file),
+          parseSpreadsheet(firstFile),
+          extractExcelImages(firstFile),
         ]);
         setSpreadsheetRows(rows.slice(0, 6));
         const products = extractProducts(rows);
@@ -118,15 +146,30 @@ export default function App() {
       if (spreadsheetProducts.length > 0) { setPhase('select'); return; }
       setError('未能从表格中提取产品，请检查格式'); return;
     }
-    if (!imageBase64) return;
+    if (!uploadedImages.length) return;
     setLoading(true); setError('');
     try {
-      const identified = await callIdentifyApi({ image: imageBase64 });
-      setProduct(identified);
-      await startChat([{
-        role: 'user',
-        content: `商品信息：名称=${identified.name}，类别=${identified.category}，品牌=${identified.brand}`,
-      }]);
+      const identified = await Promise.all(
+        uploadedImages.map(img => callIdentifyApi({ image: img.base64 }))
+      );
+      const groups = await callGroupApi(identified);
+      setProductGroups(groups);
+
+      if (groups.length <= 1) {
+        // Single group — skip select, go straight to chat
+        const g = groups[0] ?? { indices: [0], ...identified[0] };
+        const prod = { name: g.name, category: g.category, brand: g.brand };
+        setProduct(prod);
+        const firstIdx = g.indices[0] ?? 0;
+        setImageBase64(uploadedImages[firstIdx].base64);
+        setImagePreview(uploadedImages[firstIdx].preview);
+        await startChat([{
+          role: 'user',
+          content: `商品信息：名称=${prod.name}，类别=${prod.category}，品牌=${prod.brand}`,
+        }]);
+      } else {
+        setPhase('select');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '请求失败，请重试');
     } finally { setLoading(false); }
@@ -142,6 +185,26 @@ export default function App() {
       await startChat([{
         role: 'user',
         content: `商品信息：${sp.rowText || `名称=${sp.name}，类别=${sp.category}，品牌=${sp.brand}`}`,
+      }], false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '请求失败，请重试');
+    } finally { setLoading(false); }
+  }
+
+  async function handleSelectGroup(group: ProductGroup) {
+    if (loading) return;
+    const prod = { name: group.name, category: group.category, brand: group.brand };
+    setProduct(prod);
+    setSelectedGroup(group);
+    setMessages([]); setResult(null); setError('');
+    const firstIdx = group.indices[0] ?? 0;
+    setImageBase64(uploadedImages[firstIdx].base64);
+    setImagePreview(uploadedImages[firstIdx].preview);
+    setLoading(true);
+    try {
+      await startChat([{
+        role: 'user',
+        content: `商品信息：名称=${prod.name}，类别=${prod.category}，品牌=${prod.brand}`,
       }], false);
     } catch (err) {
       setError(err instanceof Error ? err.message : '请求失败，请重试');
@@ -169,19 +232,20 @@ export default function App() {
     } finally { setLoading(false); }
   }
 
-  const hasFile = !!(imageBase64 || spreadsheetProducts.length > 0);
+  const hasFile = uploadedImages.length > 0 || spreadsheetProducts.length > 0;
   const showSidebar = !!imagePreview;
   const fromSpreadsheet = spreadsheetProducts.length > 0;
+  const hasSelection = !!(selectedSP || selectedGroup);
 
   const chatPanelProps = {
     product, messages, loading, result, error, userInput, phase,
-    thumbnail: selectedSP?.thumbnail || (imagePreview || undefined),
+    thumbnail: selectedSP?.thumbnail || imagePreview || undefined,
     fromSpreadsheet,
     onSendAnswer: handleSendAnswer,
     onInputChange: setUserInput,
     onClose: closeChatPanel,
     onReset: reset,
-    onGoToSelect: () => { setPhase('select'); setSelectedSP(null); setMessages([]); setResult(null); },
+    onGoToSelect: () => { setPhase('select'); setSelectedSP(null); setSelectedGroup(null); setMessages([]); setResult(null); },
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -216,7 +280,7 @@ export default function App() {
             <div className="text-center mb-8">
               <h2 className="text-2xl sm:text-3xl font-bold text-[#0f172a]">Get Instant Valuation</h2>
               <p className="text-slate-500 mt-2 text-sm sm:text-base">
-                Upload a photo, video, or spreadsheet — AI guides you to the best price.
+                Upload photos, a video, or spreadsheet — AI guides you to the best price.
               </p>
             </div>
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -228,7 +292,24 @@ export default function App() {
                     : 'bg-gradient-to-b from-slate-50 to-white hover:from-violet-50/60 hover:to-white cursor-pointer'
                 }`}
               >
-                {imagePreview ? (
+                {/* Multi-image preview */}
+                {uploadedImages.length > 1 ? (
+                  <div className="p-4">
+                    <div className={`grid gap-2 ${
+                      uploadedImages.length === 2 ? 'grid-cols-2' :
+                      uploadedImages.length === 3 ? 'grid-cols-3' : 'grid-cols-4'
+                    } max-h-72 overflow-hidden`}>
+                      {uploadedImages.slice(0, 8).map((img, i) => (
+                        <div key={i} className="aspect-square rounded-lg overflow-hidden bg-slate-100">
+                          <img src={img.preview} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-center text-xs text-slate-400 mt-3">
+                      已选 {uploadedImages.length} 张图片 · 点击更换
+                    </p>
+                  </div>
+                ) : imagePreview ? (
                   <div className="p-4">
                     <div className="relative inline-block w-full">
                       <img src={imagePreview} alt="Preview" className="mx-auto max-h-72 rounded-xl object-contain" />
@@ -281,9 +362,9 @@ export default function App() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                       </svg>
                     </div>
-                    <p className="text-base font-semibold text-slate-700">Drop your file here</p>
+                    <p className="text-base font-semibold text-slate-700">Drop your files here</p>
                     <div className="flex items-center gap-3 mt-2">
-                      <span className="text-xs text-slate-400">📷 Images</span>
+                      <span className="text-xs text-slate-400">📷 Images (multi-select)</span>
                       <span className="text-slate-300">·</span>
                       <span className="text-xs text-slate-400">🎬 Videos</span>
                       <span className="text-slate-300">·</span>
@@ -297,7 +378,14 @@ export default function App() {
                 )}
               </div>
 
-              <input ref={fileInputRef} type="file" accept="image/*,video/*,.csv,.xlsx,.xls" className="hidden" onChange={handleFileChange} />
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,video/*,.csv,.xlsx,.xls"
+                className="hidden"
+                onChange={handleFileChange}
+              />
 
               <div className="p-5 border-t border-slate-100 space-y-3">
                 {error && (
@@ -314,6 +402,8 @@ export default function App() {
                     <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg> Analyzing...</>
                   ) : fileType === 'spreadsheet' && spreadsheetProducts.length > 0 ? (
                     <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg> Select Product ({spreadsheetProducts.length})</>
+                  ) : uploadedImages.length > 1 ? (
+                    <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg> Identify &amp; Group ({uploadedImages.length} images)</>
                   ) : (
                     <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> Start Valuation</>
                   )}
@@ -325,26 +415,33 @@ export default function App() {
 
         {/* ── Phase: select ── */}
         {phase === 'select' && (
-          <div className={`${selectedSP ? 'flex gap-5 items-start' : 'max-w-5xl mx-auto'}`}>
-            <div className={selectedSP ? 'w-64 flex-shrink-0' : 'w-full'}>
-              {!selectedSP && (
+          <div className={`${hasSelection ? 'flex gap-5 items-start' : 'max-w-5xl mx-auto'}`}>
+            <div className={hasSelection ? 'w-64 flex-shrink-0' : 'w-full'}>
+              {!hasSelection && (
                 <div className="mb-6">
                   <h2 className="text-xl sm:text-2xl font-bold text-[#0f172a]">选择要估价的产品</h2>
-                  <p className="text-slate-500 text-sm mt-1">共找到 {spreadsheetProducts.length} 个产品，点击任意一个开始 AI 估价</p>
+                  <p className="text-slate-500 text-sm mt-1">
+                    {fromSpreadsheet
+                      ? `共找到 ${spreadsheetProducts.length} 个产品，点击任意一个开始 AI 估价`
+                      : `AI 识别出 ${productGroups.length} 组产品，点击任意一组开始 AI 估价`}
+                  </p>
                 </div>
               )}
-              {selectedSP && (
+              {hasSelection && (
                 <div className="mb-3">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Products ({spreadsheetProducts.length})</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
+                    {fromSpreadsheet ? `Products (${spreadsheetProducts.length})` : `Groups (${productGroups.length})`}
+                  </p>
                 </div>
               )}
-              {error && !selectedSP && (
+              {error && !hasSelection && (
                 <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
                   <span>⚠️</span> {error}
                 </div>
               )}
 
-              {!selectedSP && (
+              {/* ── Spreadsheet product grid ── */}
+              {fromSpreadsheet && !selectedSP && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {spreadsheetProducts.map((sp, i) => (
                     <button key={i} onClick={() => handleSelectProduct(sp)} disabled={loading}
@@ -379,7 +476,8 @@ export default function App() {
                 </div>
               )}
 
-              {selectedSP && (
+              {/* ── Spreadsheet product sidebar ── */}
+              {fromSpreadsheet && selectedSP && (
                 <div className="space-y-1.5 max-h-[calc(100vh-7rem)] overflow-y-auto pr-1">
                   {spreadsheetProducts.map((sp, i) => (
                     <button key={i} onClick={() => handleSelectProduct(sp)} disabled={loading}
@@ -402,9 +500,81 @@ export default function App() {
                   ))}
                 </div>
               )}
+
+              {/* ── Image group grid ── */}
+              {!fromSpreadsheet && !selectedGroup && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {productGroups.map((g, i) => (
+                    <button key={i} onClick={() => handleSelectGroup(g)} disabled={loading}
+                      className="text-left bg-white rounded-2xl border border-slate-200 hover:border-violet-300 hover:shadow-lg shadow-sm overflow-hidden transition-all group disabled:opacity-50">
+                      <div className="w-full aspect-square bg-slate-100 overflow-hidden">
+                        {g.indices.length === 1 ? (
+                          <img
+                            src={uploadedImages[g.indices[0]]?.preview}
+                            alt={g.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full grid grid-cols-2 gap-0.5">
+                            {g.indices.slice(0, 4).map(idx => (
+                              <img
+                                key={idx}
+                                src={uploadedImages[idx]?.preview}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <p className="font-semibold text-slate-800 text-sm group-hover:text-violet-700 transition-colors truncate">{g.name}</p>
+                        <p className="text-xs text-slate-400 mt-0.5 mb-3">
+                          {g.category}{g.brand ? ` · ${g.brand}` : ''} · {g.indices.length} 张图片
+                        </p>
+                        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-1 text-xs font-semibold text-violet-600 group-hover:text-violet-700">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          Start Valuation →
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Image group sidebar ── */}
+              {!fromSpreadsheet && selectedGroup && (
+                <div className="space-y-1.5 max-h-[calc(100vh-7rem)] overflow-y-auto pr-1">
+                  {productGroups.map((g, i) => (
+                    <button key={i} onClick={() => handleSelectGroup(g)} disabled={loading}
+                      className={`w-full text-left flex items-center gap-2.5 p-2.5 rounded-xl border transition-all ${
+                        selectedGroup === g ? 'border-violet-300 bg-violet-50 shadow-sm' : 'border-transparent bg-white hover:border-slate-200'
+                      }`}>
+                      <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
+                        {g.indices.length === 1 ? (
+                          <img src={uploadedImages[g.indices[0]]?.preview} alt={g.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full grid grid-cols-2 gap-0.5">
+                            {g.indices.slice(0, 4).map(idx => (
+                              <img key={idx} src={uploadedImages[idx]?.preview} alt="" className="w-full h-full object-cover" />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-semibold truncate ${selectedGroup === g ? 'text-violet-700' : 'text-slate-800'}`}>{g.name}</p>
+                        <p className="text-[10px] text-slate-400">{g.indices.length} 张图片</p>
+                      </div>
+                      {selectedGroup === g && <div className="w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {selectedSP && (
+            {hasSelection && (
               <div className="flex-1 min-w-0">
                 <ChatPanel {...chatPanelProps} compact />
               </div>

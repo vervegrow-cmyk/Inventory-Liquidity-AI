@@ -3,6 +3,7 @@ import http from 'http';
 import { pricingController } from './features/pricing/controller.js';
 import { identifyController } from './features/identify/controller.js';
 import { generateController } from './features/generate/controller.js';
+import { groupController } from './features/identify/groupController.js';
 import { logRequest, logError } from './backend/middlewares/logger.js';
 
 const PORT = 3001;
@@ -36,6 +37,7 @@ function httpStatus(result) {
 const ROUTES = {
   '/api/pricing/calculate': pricingController,
   '/api/identify/analyze':  identifyController,
+  '/api/identify/group':    groupController,
   '/api/generate/content':  generateController,
 };
 
@@ -69,5 +71,5 @@ http.createServer(async (req, res) => {
   }
 }).listen(PORT, () => {
   console.log(`API dev server running at http://localhost:${PORT}`);
-  console.log('Routes: /api/pricing/calculate | /api/identify/analyze | /api/generate/content');
+  console.log('Routes: /api/pricing/calculate | /api/identify/analyze | /api/identify/group | /api/generate/content');
 });

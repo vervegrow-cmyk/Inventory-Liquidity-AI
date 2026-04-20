@@ -43,6 +43,18 @@ export interface SpreadsheetProduct {
   thumbnail?: string;
 }
 
+export interface UploadedImage {
+  base64: string;
+  preview: string;
+}
+
+export interface ProductGroup {
+  indices: number[];
+  name: string;
+  category: string;
+  brand: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
