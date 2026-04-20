@@ -232,8 +232,15 @@ export default function App() {
         ]);
         setSpreadsheetRows(rows.slice(0, 6));
         const products = extractProducts(rows);
-        products.forEach((p, i) => { if (images[i]) p.thumbnail = images[i]; });
-        setSpreadsheetProducts(products);
+        const productsWithThumbs = await Promise.all(products.map(async (p, i) => {
+          if (!images[i]) return p;
+          try {
+            const b64 = images[i].split(',')[1];
+            const small = await compressImageBase64(b64, 160, 0.6);
+            return { ...p, thumbnail: `data:image/jpeg;base64,${small}` };
+          } catch { return { ...p, thumbnail: images[i] }; }
+        }));
+        setSpreadsheetProducts(productsWithThumbs);
       } catch { setError('表格解析失败，请检查文件格式'); }
       finally { setLoading(false); }
     } else {
@@ -342,8 +349,15 @@ export default function App() {
         if (file.size > 20 * 1024 * 1024) { setError('表格文件不能超过 20MB'); continue; }
         const [{ rows }, imgs] = await Promise.all([parseSpreadsheet(file), extractExcelImages(file)]);
         const products = extractProducts(rows);
-        products.forEach((p, i) => { if (imgs[i]) p.thumbnail = imgs[i]; });
-        setSpreadsheetProducts(prev => [...prev, ...products]);
+        const productsWithThumbs = await Promise.all(products.map(async (p, i) => {
+          if (!imgs[i]) return p;
+          try {
+            const b64 = imgs[i].split(',')[1];
+            const small = await compressImageBase64(b64, 160, 0.6);
+            return { ...p, thumbnail: `data:image/jpeg;base64,${small}` };
+          } catch { return { ...p, thumbnail: imgs[i] }; }
+        }));
+        setSpreadsheetProducts(prev => [...prev, ...productsWithThumbs]);
       }
 
       // ── Video files ────────────────────────────────────────────────────────

@@ -75,8 +75,10 @@ export async function extractExcelImages(file: File): Promise<string[]> {
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     const urls: string[] = [];
     for (const path of mediaFiles) {
-      const blob = await zip.files[path].async('blob');
-      urls.push(URL.createObjectURL(blob));
+      const ext = path.split('.').pop()?.toLowerCase() ?? 'jpeg';
+      const mime = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      const b64 = await zip.files[path].async('base64');
+      urls.push(`data:${mime};base64,${b64}`);
     }
     return urls;
   } catch {
