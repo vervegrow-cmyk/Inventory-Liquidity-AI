@@ -34,42 +34,33 @@ function readStoredView(): AppView {
 
 const _vs = (() => {
   try {
-    const r = sessionStorage.getItem('valuation-session');
+    const r = localStorage.getItem('valuation-session');
     if (!r) return null;
     const d = JSON.parse(r);
     if (!d || typeof d !== 'object' || !['select', 'chatting'].includes(d.phase)) return null;
     if (typeof d.imageCount === 'number') {
-      // New format: load images from individual sessionStorage keys
       d.uploadedImages = Array.from({ length: d.imageCount }, (_, i) =>
-        sessionStorage.getItem(`valuation-img-${i}`) ?? ''
+        localStorage.getItem(`valuation-img-${i}`) ?? ''
       ).filter(Boolean);
     }
-    // Old format: d.uploadedImages already set in JSON — keep it as-is
     if (!Array.isArray(d.uploadedImages)) d.uploadedImages = [];
     return d;
   } catch { return null; }
 })();
 
 function saveSession(data: object) {
-  try { sessionStorage.setItem('valuation-session', JSON.stringify(data)); } catch { /* quota */ }
+  try { localStorage.setItem('valuation-session', JSON.stringify(data)); } catch { /* quota */ }
 }
 function clearSession() {
   const keys: string[] = [];
-  for (let i = 0; i < sessionStorage.length; i++) {
-    const k = sessionStorage.key(i);
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
     if (k?.startsWith('valuation-img-')) keys.push(k);
   }
-  keys.forEach(k => sessionStorage.removeItem(k));
-  sessionStorage.removeItem('valuation-session');
+  keys.forEach(k => localStorage.removeItem(k));
+  localStorage.removeItem('valuation-session');
   localStorage.removeItem('valuation-groups');
 }
-
-const _savedGroups = (() => {
-  try {
-    const r = localStorage.getItem('valuation-groups');
-    return r ? JSON.parse(r) as ProductGroup[] : null;
-  } catch { return null; }
-})();
 
 export default function App() {
   const [appView, setAppViewState] = useState<AppView>(readStoredView);
@@ -98,11 +89,9 @@ export default function App() {
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>(
     () => (_vs?.uploadedImages ?? []).map((url: string) => ({ base64: url.split(',')[1] ?? url, preview: url, thumbnail: url }))
   );
-  const [productGroups, setProductGroups] = useState<ProductGroup[]>(
-    () => (_savedGroups && _savedGroups.length > 0) ? _savedGroups : (_vs?.productGroups ?? [])
-  );
+  const [productGroups, setProductGroups] = useState<ProductGroup[]>(_vs?.productGroups ?? []);
   const [selectedGroup, setSelectedGroup] = useState<ProductGroup | null>(() => {
-    const groups = (_savedGroups && _savedGroups.length > 0) ? _savedGroups : (_vs?.productGroups ?? []);
+    const groups = _vs?.productGroups ?? [];
     const i = _vs?.selGroupIdx ?? -1;
     return i >= 0 ? groups[i] ?? null : null;
   });
@@ -143,22 +132,14 @@ export default function App() {
     });
   }, [phase, fileType, imageBase64, uploadedImages, productGroups, spreadsheetProducts, spreadsheetRows, product, result, messages, selectedGroup, selectedSP]);
 
-  // Persist product groups (with thumbnails) to localStorage so they survive refresh
-  useEffect(() => {
-    if (phase === 'upload') { localStorage.removeItem('valuation-groups'); return; }
-    if (productGroups.length > 0) {
-      try { localStorage.setItem('valuation-groups', JSON.stringify(productGroups)); } catch { /* quota */ }
-    }
-  }, [productGroups, phase]);
-
-  // Save each thumbnail in its own sessionStorage key (~10KB each, avoids quota issues)
+  // Save each thumbnail to localStorage (survives refresh reliably)
   useEffect(() => {
     if (phase === 'upload') return;
     uploadedImages.forEach((img, i) => {
       const url = img.thumbnail || (img.base64 ? `data:image/jpeg;base64,${img.base64}` : '');
       if (!url) return;
       try {
-        sessionStorage.setItem(`valuation-img-${i}`, url);
+        localStorage.setItem(`valuation-img-${i}`, url);
       } catch { /* quota */ }
     });
   }, [uploadedImages, phase]);
