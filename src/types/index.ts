@@ -55,9 +55,16 @@ export interface ProductGroup {
   brand: string;
 }
 
+export interface ChatAttachment {
+  type: 'image' | 'video' | 'spreadsheet';
+  preview: string;
+  name: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  attachments?: ChatAttachment[];
 }
 
 export interface PricingResult {

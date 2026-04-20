@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import type { Phase, FileType, Product, SpreadsheetProduct, ChatMessage, PricingResult, UploadedImage, ProductGroup } from './types';
+import type { Phase, FileType, Product, SpreadsheetProduct, ChatMessage, ChatAttachment, PricingResult, UploadedImage, ProductGroup } from './types';
 import { extractVideoFrame, parseSpreadsheet, extractExcelImages, extractProducts } from './lib/media';
 import { callPricingApi } from './services/pricingApi';
 import { callIdentifyApi } from './services/identifyApi';
@@ -232,6 +232,49 @@ export default function App() {
     } finally { setLoading(false); }
   }
 
+  async function handleSendWithAttachments(text: string, files: File[]) {
+    setUserInput(''); setError(''); setLoading(true);
+    try {
+      const attachments: ChatAttachment[] = [];
+      const contextParts: string[] = [];
+
+      for (const file of files) {
+        const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+        if (['xlsx', 'xls', 'csv'].includes(ext)) {
+          const { products } = await parseSpreadsheet(file);
+          const summary = products.slice(0, 10).map(p => `${p.name}(${p.brand})`).join('、');
+          attachments.push({ type: 'spreadsheet', preview: '', name: file.name });
+          contextParts.push(`【补充表格 ${file.name}】${summary}`);
+        } else if (['mp4', 'mov', 'webm'].includes(ext)) {
+          const frameBase64 = await extractVideoFrame(file);
+          attachments.push({ type: 'video', preview: frameBase64, name: file.name });
+          contextParts.push(`【补充视频 ${file.name}】`);
+        } else {
+          const base64 = await readFileAsDataUrl(file);
+          attachments.push({ type: 'image', preview: base64, name: file.name });
+          contextParts.push(`【补充图片 ${file.name}】`);
+        }
+      }
+
+      const content = [text.trim(), ...contextParts].filter(Boolean).join('\n');
+      const userMsg: ChatMessage = { role: 'user', content, attachments };
+      const newMessages: ChatMessage[] = [...messages, userMsg];
+      setMessages(newMessages);
+
+      const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
+      const data = await callPricingApi(apiMessages);
+      if (data.done) {
+        setResult(data);
+        setMessages([...newMessages, { role: 'assistant', content: data.reason }]);
+        if (phase !== 'select') setPhase('done');
+      } else {
+        setMessages([...newMessages, { role: 'assistant', content: data.reply }]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '发送失败，请重试');
+    } finally { setLoading(false); }
+  }
+
   const hasFile = uploadedImages.length > 0 || spreadsheetProducts.length > 0;
   const showSidebar = !!imagePreview;
   const fromSpreadsheet = spreadsheetProducts.length > 0;
@@ -242,6 +285,7 @@ export default function App() {
     thumbnail: selectedSP?.thumbnail || imagePreview || undefined,
     fromSpreadsheet,
     onSendAnswer: handleSendAnswer,
+    onSendWithAttachments: handleSendWithAttachments,
     onInputChange: setUserInput,
     onClose: closeChatPanel,
     onReset: reset,
@@ -415,7 +459,7 @@ export default function App() {
 
         {/* ── Phase: select ── */}
         {phase === 'select' && (
-          <div className={`${hasSelection ? 'flex gap-5 items-start' : 'max-w-5xl mx-auto'}`}>
+          <div className={`${hasSelection ? 'flex gap-5 items-start max-w-5xl mx-auto' : 'max-w-5xl mx-auto'}`}>
             <div className={hasSelection ? 'w-64 flex-shrink-0' : 'w-full'}>
               {!hasSelection && (
                 <div className="mb-6">
@@ -575,7 +619,7 @@ export default function App() {
             </div>
 
             {hasSelection && (
-              <div className="flex-1 min-w-0">
+              <div className="w-[400px] flex-shrink-0">
                 <ChatPanel {...chatPanelProps} compact />
               </div>
             )}
@@ -589,7 +633,7 @@ export default function App() {
               <div className="hidden lg:block lg:col-span-1">
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden sticky top-20">
                   <div className="relative">
-                    <img src={imagePreview} alt={product.name} className="w-full aspect-square object-cover" />
+                    <img src={imagePreview} alt={product.name} className="w-full h-44 object-cover" />
                     {fileType === 'video' && (
                       <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
@@ -597,14 +641,14 @@ export default function App() {
                       </div>
                     )}
                   </div>
-                  <div className="p-4 space-y-3">
+                  <div className="p-3 space-y-2">
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Product</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Product</p>
                       <p className="text-sm font-bold text-slate-800">{product.name}</p>
                       <p className="text-xs text-slate-500">{product.category}</p>
                     </div>
-                    <div className="pt-3 border-t border-slate-100">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Brand</p>
+                    <div className="pt-2 border-t border-slate-100">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Brand</p>
                       <p className="text-sm font-medium text-slate-700">{product.brand}</p>
                     </div>
                     <div className="pt-3 border-t border-slate-100 flex items-center gap-2">

@@ -1,10 +1,10 @@
-import type { ChatMessage, PricingResult, ApiResponse } from '../types';
+import type { PricingResult, ApiResponse } from '../types';
 
 export type PricingTurnResponse =
   | { reply: string; done: false }
   | (PricingResult & { reply: string; done: true });
 
-export async function callPricingApi(messages: ChatMessage[]): Promise<PricingTurnResponse> {
+export async function callPricingApi(messages: { role: string; content: string }[]): Promise<PricingTurnResponse> {
   const res = await fetch('/api/pricing/calculate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
