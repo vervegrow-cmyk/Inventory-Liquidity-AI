@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { Phase, FileType, Product, SpreadsheetProduct, ChatMessage, ChatAttachment, PricingResult, UploadedImage, ProductGroup } from './types';
 import { extractVideoFrame, parseSpreadsheet, extractExcelImages, extractProducts, compressImageBase64 } from './lib/media';
 import { callPricingApi } from './services/pricingApi';
@@ -30,10 +30,24 @@ function isSpreadsheetFile(file: File): boolean {
   return /\.(xlsx?|csv)$/i.test(file.name) || file.type.includes('spreadsheet') || file.type === 'text/csv';
 }
 
+function readStoredView(): AppView {
+  const v = localStorage.getItem('appView');
+  return (v === 'cart' || v === 'orders') ? v : 'valuation';
+}
+
 export default function App() {
-  const [appView, setAppView] = useState<AppView>('valuation');
+  const [appView, setAppViewState] = useState<AppView>(readStoredView);
   const [showMethodModal, setShowMethodModal] = useState(false);
   const cartCount = useRecoveryStore(s => s.cart.length);
+
+  function setAppView(view: AppView) {
+    setAppViewState(view);
+    localStorage.setItem('appView', view);
+  }
+
+  useEffect(() => {
+    localStorage.setItem('appView', appView);
+  }, [appView]);
   const [phase, setPhase] = useState<Phase>('upload');
   const [fileType, setFileType] = useState<FileType>('image');
 
@@ -75,6 +89,7 @@ export default function App() {
     setMessages([]); setUserInput('');
     setResult(null); setError('');
     setUploadKey(k => k + 1);
+    localStorage.setItem('appView', 'valuation');
   }
 
   function closeChatPanel() {
