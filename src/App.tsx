@@ -680,6 +680,30 @@ export default function App() {
         )}
 
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-200 bg-white mt-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-5 rounded bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-[10px]">📦</div>
+            <span className="font-medium text-slate-500">Inventory Liquidity AI</span>
+            <span className="text-slate-300">·</span>
+            <span>v1.2.0</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span>Developer: Dreams-as-Steed</span>
+            <span className="text-slate-300">·</span>
+            <span className="flex items-center gap-1">
+              <svg className="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 01.213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 00.167-.054l1.903-1.114a.864.864 0 01.717-.098 10.16 10.16 0 002.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-5.972 2.932-7.715 1.613-1.015 3.555-1.427 5.44-1.269-.692-3.633-4.283-6.493-8.983-6.493zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178A1.17 1.17 0 014.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178 1.17 1.17 0 01-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-3.144 2.586-3.144 6.833-.002 9.418 3.14 2.586 8.664 2.588 11.806.002.01-.008.017-.018.026-.025l1.56.922a.268.268 0 00.138.046c.131 0 .24-.108.24-.247 0-.06-.023-.12-.039-.177l-.322-1.218a.495.495 0 01.178-.553C24.476 17.1 25.5 15.33 25.5 13.419c0-3.394-3.186-6.133-8.562-6.561z" />
+              </svg>
+              WeChat: <span className="font-medium text-slate-600 select-all">rsrzrcjaky</span>
+            </span>
+            <span className="text-slate-300">·</span>
+            <span>© 2025</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
