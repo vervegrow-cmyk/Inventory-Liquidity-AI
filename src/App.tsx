@@ -241,18 +241,27 @@ export default function App() {
       for (const file of files) {
         const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
         if (['xlsx', 'xls', 'csv'].includes(ext)) {
-          const [{ text, rows }, images] = await Promise.all([parseSpreadsheet(file), extractExcelImages(file)]);
-          const summary = text.split('\n').slice(0, 8).join(' / ');
+          const [{ rows }, images] = await Promise.all([parseSpreadsheet(file), extractExcelImages(file)]);
           attachments.push({ type: 'spreadsheet', preview: '', name: file.name, rows: rows.slice(0, 20), images });
-          contextParts.push(`【补充表格 ${file.name}】${summary}`);
+          // 结构化表格内容：表头 + 前8行数据
+          const headers = rows[0]?.join(' | ') ?? '';
+          const dataLines = rows.slice(1, 9).map((r, i) => `第${i + 1}行: ${r.filter(Boolean).join(' | ')}`).join('\n');
+          contextParts.push(`【补充表格 ${file.name}】\n表头: ${headers}\n${dataLines}`);
         } else if (['mp4', 'mov', 'webm'].includes(ext)) {
-          const { preview: framePreview } = await extractVideoFrame(file);
+          const { preview: framePreview, base64: frameB64 } = await extractVideoFrame(file);
           attachments.push({ type: 'video', preview: framePreview, name: file.name });
-          contextParts.push(`【补充视频 ${file.name}】`);
+          // 视频帧识别
+          let desc = file.name;
+          try { const r = await callIdentifyApi({ image: frameB64 }); desc = `${r.name}（${r.category}，品牌：${r.brand}）`; } catch {}
+          contextParts.push(`【补充视频】视频帧中识别到：${desc}`);
         } else {
-          const base64 = await readFileAsDataUrl(file);
-          attachments.push({ type: 'image', preview: base64, name: file.name });
-          contextParts.push(`【补充图片 ${file.name}】`);
+          const dataUrl = await readFileAsDataUrl(file);
+          const pureB64 = dataUrl.split(',')[1];
+          attachments.push({ type: 'image', preview: dataUrl, name: file.name });
+          // 图片识别后注入描述
+          let desc = file.name;
+          try { const r = await callIdentifyApi({ image: pureB64 }); desc = `${r.name}（${r.category}，品牌：${r.brand}）`; } catch {}
+          contextParts.push(`【补充图片】图片中识别到：${desc}`);
         }
       }
 
