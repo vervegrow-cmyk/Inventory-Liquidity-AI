@@ -8,9 +8,12 @@ import { ChatPanel } from './ui/blocks/ChatPanel';
 import { RecoveryMethodModal } from './modules/recovery/RecoveryMethodModal';
 import { RecoveryCartPage } from './modules/recovery/RecoveryCartPage';
 import { RecoveryOrderListPage } from './modules/recovery/RecoveryOrderListPage';
+import { AdminPage } from './modules/admin/AdminPage';
+import { InquirySubmitModal } from './modules/inquiry/InquirySubmitModal';
 import { useRecoveryStore } from './stores/recoveryStore';
+import type { InquiryProduct } from './types/inquiry';
 
-type AppView = 'valuation' | 'cart' | 'orders';
+type AppView = 'valuation' | 'cart' | 'orders' | 'admin';
 
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -28,7 +31,7 @@ function isSpreadsheetFile(file: File): boolean {
 
 function readStoredView(): AppView {
   const v = localStorage.getItem('appView');
-  return (v === 'cart' || v === 'orders') ? v : 'valuation';
+  return (v === 'cart' || v === 'orders' || v === 'admin') ? v : 'valuation';
 }
 
 
@@ -65,6 +68,7 @@ function clearSession() {
 export default function App() {
   const [appView, setAppViewState] = useState<AppView>(readStoredView);
   const [showMethodModal, setShowMethodModal] = useState(false);
+  const [showInquiryModal, setShowInquiryModal] = useState(false);
   const cartCount = useRecoveryStore(s => s.cart.length);
 
   function setAppView(view: AppView) {
@@ -543,6 +547,16 @@ export default function App() {
             </span>
           </button>
           <div className="flex items-center gap-2">
+            {/* Submit inquiry — visible when there are priced products */}
+            {appView === 'valuation' && (phase === 'select' || phase === 'chatting') &&
+              (Object.keys(groupResults).length > 0 || Object.keys(spResults).length > 0) && (
+              <button
+                onClick={() => setShowInquiryModal(true)}
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all"
+              >
+                📬 提交询价
+              </button>
+            )}
             {/* Add product shortcut — visible during select/chatting */}
             {appView === 'valuation' && (phase === 'select' || phase === 'chatting') && (
               <button
@@ -557,6 +571,12 @@ export default function App() {
               </button>
             )}
             {/* Recovery nav */}
+            <button
+              onClick={() => setAppView('admin')}
+              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-all ${appView === 'admin' ? 'bg-white/20 text-white' : 'bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white'}`}
+            >
+              🏢 后台
+            </button>
             <button
               onClick={() => setAppView('orders')}
               className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-all ${appView === 'orders' ? 'bg-white/20 text-white' : 'bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white'}`}
@@ -593,6 +613,35 @@ export default function App() {
         </div>
       </header>
 
+      {/* Inquiry Submit Modal */}
+      {showInquiryModal && (() => {
+        const pricedProducts: InquiryProduct[] = fromSpreadsheet
+          ? spreadsheetProducts
+              .map((sp, i) => spResults[i] ? {
+                name: sp.name, category: sp.category, brand: sp.brand,
+                thumbnail: sp.thumbnail, estimatedPrice: spResults[i].estimated_price,
+              } : null)
+              .filter((p): p is InquiryProduct => p !== null)
+          : productGroups
+              .map((g, i) => groupResults[i] ? {
+                name: g.name, category: g.category, brand: g.brand,
+                thumbnail: g.thumbnail, estimatedPrice: groupResults[i].estimated_price,
+              } : null)
+              .filter((p): p is InquiryProduct => p !== null);
+        const estimatedTotal = pricedProducts.reduce((sum, p) => {
+          const n = parseFloat((p.estimatedPrice ?? '0').replace(/[^0-9.]/g, ''));
+          return sum + (isNaN(n) ? 0 : n);
+        }, 0);
+        return (
+          <InquirySubmitModal
+            products={pricedProducts}
+            estimatedTotal={Math.round(estimatedTotal)}
+            onClose={() => setShowInquiryModal(false)}
+            onSubmitted={() => { setShowInquiryModal(false); setAppView('admin'); }}
+          />
+        );
+      })()}
+
       {/* Recovery Method Modal */}
       {showMethodModal && result && (
         <RecoveryMethodModal
@@ -618,6 +667,11 @@ export default function App() {
         {/* ── App view: orders ── */}
         {appView === 'orders' && (
           <RecoveryOrderListPage onBack={() => setAppView('valuation')} />
+        )}
+
+        {/* ── App view: admin ── */}
+        {appView === 'admin' && (
+          <AdminPage onBack={() => setAppView('valuation')} />
         )}
 
         {/* ── App view: valuation ── */}
