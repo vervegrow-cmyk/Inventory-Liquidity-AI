@@ -265,12 +265,20 @@ export default function App() {
         }
       }
 
-      const content = [text.trim(), ...contextParts].filter(Boolean).join('\n');
-      const userMsg: ChatMessage = { role: 'user', content, attachments };
+      // UI只显示用户输入的文字；API收到完整上下文（含图片描述/表格数据）
+      const displayContent = text.trim();
+      const apiContent = [text.trim(), ...contextParts].filter(Boolean).join('\n');
+
+      const userMsg: ChatMessage = { role: 'user', content: displayContent, attachments };
       const newMessages: ChatMessage[] = [...messages, userMsg];
       setMessages(newMessages);
 
-      const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
+      // 最后一条消息用apiContent（含上下文），历史消息原样传
+      const apiMessages = newMessages.map((m, idx) =>
+        idx === newMessages.length - 1
+          ? { role: m.role, content: apiContent }
+          : { role: m.role, content: m.content }
+      );
       const data = await callPricingApi(apiMessages);
       if (data.done) {
         setResult(data);
