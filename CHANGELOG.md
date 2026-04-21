@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.3] - 2026-04-21
+
+### Fixed
+- `vercel.json` 改用 `routes` + `{ "handle": "filesystem" }` 方案，彻底解决 Vite 项目中 rewrite 优先于函数执行的问题
+- `handle: filesystem` 告诉 Vercel 先走文件系统和函数路由，未匹配到的路径才交给 SPA fallback
+- 恢复 `api/identify.js` 和 `api/pricing.js`，前端调用路径恢复为 `/api/identify` 和 `/api/pricing`
+
+### Changed
+- `vercel.json` 从 `rewrites` 切换为 `routes` 配置
+- 前端 `/api/ai/identify` → `/api/identify`，`/api/ai/pricing` → `/api/pricing`
+
+---
+
 ## [0.1.2] - 2026-04-21
 
 ### Fixed

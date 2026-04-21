@@ -5,7 +5,7 @@ export type PricingTurnResponse =
   | (PricingResult & { reply: string; done: true });
 
 export async function callPricingApi(messages: { role: string; content: string }[]): Promise<PricingTurnResponse> {
-  const res = await fetch('/api/ai/pricing', {
+  const res = await fetch('/api/pricing', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages }),
