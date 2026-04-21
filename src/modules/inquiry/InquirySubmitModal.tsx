@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { InquiryProduct } from '../../types/inquiry';
-import { useInquiryStore } from '../../stores/inquiryStore';
+import { saveInquiry } from '../../services/inquiryApi';
 
 interface Props {
   products: InquiryProduct[];
@@ -20,31 +20,44 @@ export function InquirySubmitModal({ products, estimatedTotal, onClose, onSubmit
   const [pickupTimeSlot, setPickupTimeSlot] = useState('');
   const [pickupNotes, setPickupNotes] = useState('');
 
-  const addInquiry = useInquiryStore(s => s.addInquiry);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const canSubmit = userName.trim() && contact.trim() && (
     method === 'shipping' || (pickupAddress.trim() && pickupContactPhone.trim())
   );
 
-  function handleSubmit() {
-    if (!canSubmit) return;
-    addInquiry({
-      products,
-      userName: userName.trim(),
-      contact: contact.trim(),
-      method,
-      pickupInfo: method === 'pickup' ? {
-        address: pickupAddress.trim(),
-        contactName: pickupContactName.trim() || undefined,
-        contactPhone: pickupContactPhone.trim() || undefined,
-        timeSlot: pickupTimeSlot || undefined,
-        notes: pickupNotes.trim() || undefined,
-      } : undefined,
-      shippingAddress: method === 'shipping' ? shippingAddress.trim() || undefined : undefined,
-      estimatedTotal,
-    });
-    onSubmitted();
-    onClose();
+  async function handleSubmit() {
+    if (!canSubmit || submitting) return;
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      const res = await saveInquiry({
+        products,
+        userName: userName.trim(),
+        contact: contact.trim(),
+        method,
+        pickupInfo: method === 'pickup' ? {
+          address: pickupAddress.trim(),
+          contactName: pickupContactName.trim() || undefined,
+          contactPhone: pickupContactPhone.trim() || undefined,
+          timeSlot: pickupTimeSlot || undefined,
+          notes: pickupNotes.trim() || undefined,
+        } : undefined,
+        shippingAddress: method === 'shipping' ? shippingAddress.trim() || undefined : undefined,
+        estimatedTotal,
+      } as any);
+      if (!res.success) {
+        setSubmitError(res.error?.message || '提交失败，请重试');
+        return;
+      }
+      onSubmitted();
+      onClose();
+    } catch {
+      setSubmitError('网络错误，请检查服务器连接');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -209,12 +222,19 @@ export function InquirySubmitModal({ products, estimatedTotal, onClose, onSubmit
             </div>
           )}
 
+          {submitError && (
+            <div className="px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
+              ⚠️ {submitError}
+            </div>
+          )}
           <button
             onClick={handleSubmit}
-            disabled={!canSubmit}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold text-sm transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={!canSubmit || submitting}
+            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold text-sm transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            提交询价
+            {submitting ? (
+              <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>提交中...</>
+            ) : '提交询价'}
           </button>
         </div>
       </div>
