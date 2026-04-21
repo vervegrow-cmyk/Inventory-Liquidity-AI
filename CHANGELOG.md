@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.0.7] - 2026-04-21
+
+### Fixed
+- API 函数路由持续 404：`routes` 是 Vercel Legacy 配置，对函数调用语义不同
+- 改用现代 `rewrites` 双规则方案：`/api/:path*` pass-through 让 Vercel 正确找到函数，`/:path*` 兜底 SPA
+
+---
+
 ## [0.0.6] - 2026-04-21
 
 ### Changed
