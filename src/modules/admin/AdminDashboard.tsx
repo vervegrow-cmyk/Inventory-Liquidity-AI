@@ -7,9 +7,13 @@ import { InquiryDetailPage } from './InquiryDetailPage';
 
 interface Statistics {
   total: number;
-  new: number;
-  contacted: number;
-  dealed: number;
+  pending: number;
+  priced: number;
+  accepted: number;
+  rejected: number;
+  saved: number;
+  processing: number;
+  completed: number;
   totalValue: number;
 }
 
@@ -28,7 +32,7 @@ type ViewMode = 'list' | 'directory';
 
 export function AdminDashboard() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
-  const [statistics, setStatistics] = useState<Statistics>({ total: 0, new: 0, contacted: 0, dealed: 0, totalValue: 0 });
+  const [statistics, setStatistics] = useState<Statistics>({ total: 0, pending: 0, priced: 0, accepted: 0, rejected: 0, saved: 0, processing: 0, completed: 0, totalValue: 0 });
   const [filterStatus, setFilterStatus] = useState<InquiryStatus | 'all'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,7 +114,7 @@ export function AdminDashboard() {
       g.totalProducts += inq.products.length;
       g.totalValue += inq.estimatedTotal ?? 0;
       if (inq.createdAt > g.latestAt) g.latestAt = inq.createdAt;
-      if (inq.status === 'new') g.hasNew = true;
+      if (inq.status === 'pending' || inq.status === 'priced') g.hasNew = true;
     }
     return Array.from(map.values()).sort((a, b) => b.latestAt.localeCompare(a.latestAt));
   }, [inquiries]);
@@ -154,9 +158,9 @@ export function AdminDashboard() {
         {/* 统计卡片 */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <StatCard title="总询价" value={statistics.total} icon="📊" color="bg-blue-50 border-blue-100" />
-          <StatCard title="新询价" value={statistics.new} icon="📬" color="bg-amber-50 border-amber-100" highlight={statistics.new > 0} />
-          <StatCard title="已联系" value={statistics.contacted} icon="📞" color="bg-indigo-50 border-indigo-100" />
-          <StatCard title="已成交" value={statistics.dealed} icon="🤝" color="bg-emerald-50 border-emerald-100" />
+          <StatCard title="待估价" value={statistics.pending} icon="📬" color="bg-amber-50 border-amber-100" highlight={statistics.pending > 0} />
+          <StatCard title="已出价" value={statistics.priced} icon="💡" color="bg-indigo-50 border-indigo-100" />
+          <StatCard title="已接受" value={statistics.accepted} icon="🤝" color="bg-emerald-50 border-emerald-100" />
           <StatCard title="总估值" value={`¥${(statistics.totalValue / 10000).toFixed(1)}万`} icon="💰" color="bg-violet-50 border-violet-100" />
         </div>
 
@@ -181,7 +185,7 @@ export function AdminDashboard() {
           {/* 状态筛选 */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-xs font-semibold text-slate-500 mr-1">筛选:</span>
-            {(['all', 'new', 'contacted', 'dealed'] as const).map(s => (
+            {(['all', 'pending', 'priced', 'accepted', 'processing'] as const).map(s => (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
@@ -193,7 +197,7 @@ export function AdminDashboard() {
                     : `${INQUIRY_STATUS_COLORS[s]} hover:opacity-80`
                 }`}
               >
-                {s === 'all' ? `全部 (${statistics.total})` : `${INQUIRY_STATUS_LABELS[s]} (${statistics[s]})`}
+                {s === 'all' ? `全部 (${statistics.total})` : `${INQUIRY_STATUS_LABELS[s]} (${statistics[s as keyof Statistics] ?? 0})`}
               </button>
             ))}
           </div>
@@ -426,7 +430,7 @@ function CustomerInquiryPanel({ customer, expandedInquiries, onToggleInquiry, on
 
         {/* 状态分布 */}
         <div className="flex items-center gap-2 mt-4">
-          {(['new', 'contacted', 'dealed'] as const).map(s => {
+          {(['pending', 'priced', 'accepted', 'processing'] as const).map(s => {
             const count = customer.inquiries.filter(q => q.status === s).length;
             if (count === 0) return null;
             return (
@@ -538,20 +542,20 @@ function CustomerInquiryPanel({ customer, expandedInquiries, onToggleInquiry, on
 
                       {/* 快捷状态操作 */}
                       <div className="flex items-center gap-2">
-                        {inq.status === 'new' && (
+                        {inq.status === 'pending' && (
                           <button
-                            onClick={() => onStatusChange(inq.id, 'contacted')}
+                            onClick={() => onStatusChange(inq.id, 'priced')}
                             className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors"
                           >
-                            ✓ 标记已联系
+                            💡 标记已出价
                           </button>
                         )}
-                        {inq.status !== 'dealed' && (
+                        {inq.status === 'priced' && (
                           <button
-                            onClick={() => onStatusChange(inq.id, 'dealed')}
+                            onClick={() => onStatusChange(inq.id, 'processing')}
                             className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors"
                           >
-                            🤝 标记成交
+                            🤝 标记处理中
                           </button>
                         )}
                         <button
@@ -670,8 +674,8 @@ function ListView({ inquiries, onView, onStatusChange }: ListViewProps) {
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-2">
                     <button onClick={() => onView(inq.id)} className="text-blue-600 hover:text-blue-700 text-xs font-semibold">查看 →</button>
-                    {inq.status === 'new' && (
-                      <button onClick={() => onStatusChange(inq.id, 'contacted')} className="text-xs text-slate-500 hover:text-slate-800">已联系</button>
+                    {inq.status === 'pending' && (
+                      <button onClick={() => onStatusChange(inq.id, 'priced')} className="text-xs text-slate-500 hover:text-slate-800">已出价</button>
                     )}
                   </div>
                 </td>

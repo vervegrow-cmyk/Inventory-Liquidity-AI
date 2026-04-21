@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { InquiryProduct } from '../../types/inquiry';
-import { saveInquiry } from '../../services/inquiryApi';
+import { saveInquiry, selectLogistics } from '../../services/inquiryApi';
 
 interface Props {
   products: InquiryProduct[];
@@ -32,25 +32,40 @@ export function InquirySubmitModal({ products, estimatedTotal, onClose, onSubmit
     setSubmitting(true);
     setSubmitError('');
     try {
+      // Step 1: 创建询价
       const res = await saveInquiry({
-        products,
         userName: userName.trim(),
         contact: contact.trim(),
-        method,
-        pickupInfo: method === 'pickup' ? {
-          address: pickupAddress.trim(),
-          contactName: pickupContactName.trim() || undefined,
-          contactPhone: pickupContactPhone.trim() || undefined,
-          timeSlot: pickupTimeSlot || undefined,
-          notes: pickupNotes.trim() || undefined,
-        } : undefined,
-        shippingAddress: method === 'shipping' ? shippingAddress.trim() || undefined : undefined,
+        userType: 'personal',
         estimatedTotal,
-      } as any);
+        products: products.map(p => ({
+          name: p.name,
+          category: p.category,
+          brand: p.brand,
+          thumbnail: p.thumbnail,
+          estimatedPrice: p.estimatedPrice,
+        })),
+      });
       if (!res.success) {
         setSubmitError(res.error?.message || '提交失败，请重试');
         return;
       }
+
+      // Step 2: 保存物流方式
+      const inquiryId = res.data?.inquiry?.id;
+      if (inquiryId) {
+        await selectLogistics({
+          inquiryId,
+          type: method === 'pickup' ? 'pickup' : 'shipping',
+          address: method === 'pickup' ? pickupAddress.trim() : undefined,
+          contactName: method === 'pickup' ? pickupContactName.trim() || undefined : undefined,
+          contactPhone: method === 'pickup' ? pickupContactPhone.trim() || undefined : undefined,
+          timeSlot: method === 'pickup' ? pickupTimeSlot || undefined : undefined,
+          shippingAddress: method === 'shipping' ? shippingAddress.trim() || undefined : undefined,
+          notes: method === 'pickup' ? pickupNotes.trim() || undefined : undefined,
+        });
+      }
+
       onSubmitted();
       onClose();
     } catch {

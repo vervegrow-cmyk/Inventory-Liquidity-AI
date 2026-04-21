@@ -22,11 +22,37 @@ export async function getInquiry(id: string) {
   return response.json();
 }
 
-export async function saveInquiry(inquiry: Inquiry) {
-  const response = await fetch(`${API_URL}/api/inquiry/save`, {
+export async function saveInquiry(data: {
+  userName: string;
+  contact: string;
+  userType?: string;
+  note?: string;
+  products: Array<{ name: string; category: string; brand: string; thumbnail?: string; estimatedPrice?: string }>;
+  estimatedTotal?: number;
+}) {
+  const response = await fetch(`${API_URL}/api/inquiry/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(inquiry)
+    body: JSON.stringify(data)
+  });
+
+  return response.json();
+}
+
+export async function selectLogistics(data: {
+  inquiryId: string;
+  type: 'pickup' | 'shipping' | 'fba';
+  address?: string;
+  contactName?: string;
+  contactPhone?: string;
+  timeSlot?: string;
+  shippingAddress?: string;
+  notes?: string;
+}) {
+  const response = await fetch(`${API_URL}/api/logistics/select`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
   });
 
   return response.json();
