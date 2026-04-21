@@ -1,1 +1,20 @@
-[]
+[
+  {
+    "id": "mo87miq3qjx0w",
+    "inquiryId": "mo87miq3yz9gv",
+    "name": "iPhone 14",
+    "category": "�ֻ�",
+    "brand": "Apple",
+    "description": "",
+    "thumbnail": null,
+    "tableData": null,
+    "estimatedPrice": null,
+    "priceMin": null,
+    "priceMax": null,
+    "confidence": null,
+    "riskLevel": null,
+    "riskNote": null,
+    "recycleAdvice": null,
+    "createdAt": "2026-04-21T05:55:23.595Z"
+  }
+]
