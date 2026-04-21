@@ -6,10 +6,13 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite_8-646CFF?style=flat-square&logo=vite&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
+![Version](https://img.shields.io/badge/version-0.0.1-brightgreen?style=flat-square)
 
 ---
 
-## 功能
+## 功能概览
+
+### 前台：AI 估价
 
 上传商品图片、视频或 Excel 表格，AI 自动识别后通过多轮对话了解商品详情，输出三维估价结果。
 
@@ -24,6 +27,18 @@
 - 图片：JPG / PNG（最大 10 MB）
 - 视频：MP4 / MOV（自动提取关键帧）
 - 表格：XLSX / CSV（批量选品，支持嵌入图片提取）
+
+### 后台：询价管理系统
+
+管理员后台（`/admin`）提供完整的询价订单管理：
+
+| 功能 | 说明 |
+|------|------|
+| 询价列表 | 查看所有询价记录，支持状态筛选和搜索 |
+| 询价详情 | 查看完整商品信息、估价结果、物流信息 |
+| 状态管理 | 待处理 → 已联系 → 已完成 / 已取消 流转 |
+| 客户管理 | 按客户聚合询价历史，统计交易金额 |
+| 数据统计 | 询价量、完成率、平均金额等核心指标 |
 
 ---
 
@@ -41,10 +56,14 @@ npm install
 
 ```bash
 # 创建 .env 文件
-echo "KIMI_API_KEY=你的_Kimi_API_Key" > .env
+KIMI_API_KEY=你的_Kimi_API_Key
+
+# 可选：持久化存储（不配置则使用内存存储，重启后数据重置）
+UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your_token
 ```
 
-> 获取 API Key：[platform.moonshot.cn](https://platform.moonshot.cn) → API Keys
+> 获取 Kimi API Key：[platform.moonshot.cn](https://platform.moonshot.cn) → API Keys
 
 ### 3. 启动
 
@@ -52,9 +71,9 @@ echo "KIMI_API_KEY=你的_Kimi_API_Key" > .env
 npm run dev
 ```
 
-浏览器打开 [http://localhost:5173](http://localhost:5173)
-
-> `npm run dev` 会同时启动 Vite 前端（:5173）和 Node.js API 服务（:3001）。
+- 前端：[http://localhost:5173](http://localhost:5173)
+- 后台：[http://localhost:5173/admin](http://localhost:5173/admin)（账号 `admin` / `123456`）
+- API：[http://localhost:3001](http://localhost:3001)
 
 ---
 
@@ -63,56 +82,58 @@ npm run dev
 ```
 Inventory-Liquidity-AI/
 │
-├── skills/                     # AI 能力层（原子操作，无业务逻辑）
+├── skills/                     # AI 能力层（原子操作）
 │   ├── kimiClient.js           #   Kimi API 基础调用封装
 │   ├── kimiVision.js           #   图像 / 文本商品识别
 │   └── kimiGenerate.js         #   自由内容生成
 │
 ├── agents/                     # AI 流程编排层
-│   ├── pricingAgent.js         #   多轮定价对话流程（含 retry）
-│   └── identifyAgent.js        #   识别任务分发（图像 vs 文本）
+│   ├── pricingAgent.js         #   多轮定价对话流程
+│   └── identifyAgent.js        #   识别任务分发
 │
 ├── features/                   # 业务模块（controller + service）
 │   ├── pricing/
-│   │   ├── controller.js       #   请求校验 → 调用 service → 标准响应
-│   │   └── service.js          #   业务逻辑（调用 agent）
 │   ├── identify/
-│   │   ├── controller.js
-│   │   └── service.js
-│   └── generate/
-│       ├── controller.js
-│       └── service.js
+│   ├── inquiry/
+│   ├── auth/
+│   ├── generate/
+│   └── recovery/
 │
-├── backend/                    # 后端基础设施
-│   ├── api-core/
-│   │   ├── response.js         #   统一响应：success() / fail()
-│   │   └── errors.js           #   错误码枚举
-│   └── middlewares/
-│       └── logger.js           #   请求 / 错误日志
+├── api/                        # Vercel Serverless Functions
+│   ├── _lib/
+│   │   └── upstash.js          #   Redis / 内存存储适配层
+│   ├── _handlers/
+│   │   ├── auth.js             #   登录 / 登出 / 验证
+│   │   ├── inquiry.js          #   询价 CRUD + 物流
+│   │   └── ai.js               #   AI 识别 / 定价
+│   ├── auth/[action].js        #   → login, logout, verify, register
+│   ├── inquiry/[action].js     #   → create, list, get, update, update-status, delete, statistics
+│   ├── logistics/select.js     #   物流方式选择
+│   ├── pricing/calculate.js    #   AI 定价
+│   └── identify/analyze.js     #   AI 识别
 │
-├── lib/
-│   └── utils.js                # 后端工具函数（parseJson 等）
-│
-├── dev-server.js               # Node.js HTTP 服务器（路由 → controller）
+├── dev-server.js               # 本地开发 HTTP 服务器
 │
 └── src/                        # 前端（React + TypeScript）
-    ├── types/index.ts           #   全局类型定义
-    ├── lib/
-    │   ├── utils.ts             #   前端工具函数
-    │   └── media.ts             #   文件处理（视频帧提取、Excel 解析）
-    ├── repositories/
-    │   ├── inventoryRepo.ts     #   笔记数据访问层（封装 Dexie）
-    │   └── folderRepo.ts        #   文件夹数据访问层
+    ├── modules/
+    │   ├── admin/              #   后台管理页面
+    │   │   ├── AdminLayout.tsx
+    │   │   ├── AdminDashboard.tsx
+    │   │   ├── InquiryListPage.tsx
+    │   │   ├── InquiryDetailPage.tsx
+    │   │   ├── CustomersPage.tsx
+    │   │   └── LoginPage.tsx
+    │   ├── auth/
+    │   └── inquiry/
     ├── services/
-    │   ├── pricingApi.ts        #   定价 API 调用封装
-    │   └── identifyApi.ts       #   识别 API 调用封装
-    ├── ui/
-    │   ├── components/
-    │   │   └── PriceCard.tsx    #   价格展示卡片
-    │   └── blocks/
-    │       └── ChatPanel.tsx    #   AI 对话面板
-    ├── stores/notesStore.ts     #   Zustand 全局状态
-    └── App.tsx                  #   主应用（阶段路由 + 状态管理）
+    │   ├── authApi.ts
+    │   ├── inquiryApi.ts
+    │   ├── pricingApi.ts
+    │   └── identifyApi.ts
+    ├── stores/
+    │   ├── authStore.ts
+    │   └── notesStore.ts
+    └── App.tsx
 ```
 
 ---
@@ -122,123 +143,68 @@ Inventory-Liquidity-AI/
 所有接口统一返回格式：
 
 ```json
-// 成功
 { "success": true, "data": {}, "message": "ok" }
-
-// 失败
 { "success": false, "error": { "code": "ERROR_CODE", "message": "描述" } }
 ```
 
-错误码：`VALIDATION_ERROR` / `UNAUTHORIZED` / `NOT_FOUND` / `INTERNAL_ERROR` / `AI_ERROR`
+### AI 接口
 
-### POST /api/identify/analyze
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/identify/analyze` | 商品识别（图片 / 文本） |
+| POST | `/api/pricing/calculate` | 多轮定价对话 |
 
-识别商品信息（图像 或 文本）。
+### 询价接口
 
-```json
-// 请求（图片）
-{ "image": "<base64>" }
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/inquiry/create` | 创建询价 |
+| POST | `/api/inquiry/list` | 获取询价列表 |
+| POST | `/api/inquiry/get` | 获取询价详情 |
+| POST | `/api/inquiry/update` | 更新询价信息 |
+| POST | `/api/inquiry/update-status` | 更新询价状态 |
+| POST | `/api/inquiry/delete` | 删除询价 |
+| POST | `/api/inquiry/statistics` | 统计数据 |
+| POST | `/api/logistics/select` | 物流方式选择 |
 
-// 请求（表格文本）
-{ "text": "产品名称: iPhone..., 品牌: Apple" }
+### 认证接口
 
-// 响应
-{
-  "success": true,
-  "data": { "name": "iPhone 13 Pro", "category": "电子产品", "brand": "Apple" }
-}
-```
-
-### POST /api/pricing/calculate
-
-执行一轮定价对话。
-
-```json
-// 请求
-{
-  "messages": [
-    { "role": "user", "content": "商品信息：名称=iPhone 13 Pro，类别=电子产品，品牌=Apple" }
-  ]
-}
-
-// 响应（对话进行中）
-{
-  "success": true,
-  "data": { "question": "商品成色如何？1-9成新？", "done": false }
-}
-
-// 响应（估价完成）
-{
-  "success": true,
-  "data": {
-    "estimated_price": "$350-$400",
-    "resale_price": "$450-$520",
-    "quick_sale_price": "$300-$340",
-    "confidence": "high",
-    "reason": "根据 9 成新 + 完整包装，市场需求旺盛...",
-    "done": true
-  }
-}
-```
-
-### POST /api/generate/content
-
-自由内容生成。
-
-```json
-// 请求
-{ "input": "写一段该商品的出售描述" }
-
-// 响应
-{ "success": true, "data": { "result": "..." } }
-```
-
-> 兼容旧路径：`/api/chat` → `/api/pricing/calculate`，`/api/identify` → `/api/identify/analyze`
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/auth/login` | 登录 |
+| POST | `/api/auth/logout` | 登出 |
+| POST | `/api/auth/verify` | 验证 Token |
 
 ---
 
-## 分层调用规则
+## 部署
 
-```
-前端 App.tsx
-  └── services/pricingApi.ts        (fetch 封装)
-        └── POST /api/pricing/calculate
-              └── features/pricing/controller.js   (请求校验)
-                    └── features/pricing/service.js (业务逻辑)
-                          └── agents/pricingAgent.js (流程编排)
-                                └── skills/kimiClient.js (AI 调用)
-```
+### Vercel（推荐）
 
-数据访问：`stores/notesStore` → `repositories/*` → `services/db.ts (Dexie)`
+1. 推送代码到 GitHub
+2. 在 [vercel.com](https://vercel.com) 导入仓库
+3. 添加环境变量 `KIMI_API_KEY`
+4. 点击部署
+
+> 详细步骤见 [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md)
+
+### 环境变量
+
+| 变量 | 必填 | 说明 |
+|------|------|------|
+| `KIMI_API_KEY` | 是 | Moonshot AI API Key |
+| `UPSTASH_REDIS_REST_URL` | 否 | 持久化存储（不填则用内存） |
+| `UPSTASH_REDIS_REST_TOKEN` | 否 | 持久化存储 Token |
 
 ---
 
 ## 可用命令
 
 ```bash
-npm run dev      # 启动开发服务器（前端 + API）
+npm run dev      # 启动开发服务器（前端 :5173 + API :3001）
 npm run build    # TypeScript 编译 + Vite 构建
 npm run preview  # 预览生产构建
 npm run lint     # ESLint 检查
-```
-
----
-
-## 部署
-
-### Vercel
-
-1. 将项目推送到 GitHub
-2. 在 [vercel.com](https://vercel.com) 导入仓库
-3. Environment Variables 添加 `KIMI_API_KEY`
-4. 点击部署
-
-> 注意：Vercel 部署需将 `dev-server.js` 逻辑迁移为 Vercel Serverless Functions（`/api/*.js`）。本地开发使用 `dev-server.js` + Vite proxy。
-
-### 本地生产预览
-
-```bash
-npm run build && npm run preview
 ```
 
 ---
@@ -247,6 +213,7 @@ npm run build && npm run preview
 
 - `.env` 已加入 `.gitignore`，API Key 不会提交到仓库
 - 所有 AI 调用在服务端执行，Key 不暴露到前端
+- 管理后台需要登录验证，默认账号 `admin` / `123456`（生产环境请修改）
 
 ---
 
