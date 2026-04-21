@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.0.9] - 2026-04-21
+
+### Fixed
+- 彻底消除 `/api/identify/analyze` 404：删除 `api/auth/[action].js`、`api/inquiry/[action].js`、`api/logistics/select.js` 三个独立函数文件
+- 根本原因：Vercel 多函数文件共存时，`[...path].js` catch-all 路由优先级可能被覆盖或干扰，导致特定路径 404
+- 修复方式：将全部路由（auth/inquiry/logistics/identify/pricing）内联到唯一函数入口 `api/[...path].js`，零外部导入，无路由歧义
+
+### Changed
+- 删除 `api/auth/[action].js`、`api/inquiry/[action].js`、`api/logistics/select.js`
+- `api/[...path].js` 现在处理所有 15 条路由，完全自包含
+
+---
+
 ## [0.0.8] - 2026-04-21
 
 ### Fixed

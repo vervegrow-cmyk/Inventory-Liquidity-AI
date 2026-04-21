@@ -1,11 +1,263 @@
-// Catch-all for AI routes (/api/identify/analyze, /api/pricing/calculate)
-// Fully self-contained — no imports outside api/
+// Single catch-all — handles ALL /api/* routes
+// Fully self-contained: zero imports from outside api/
+
+// ── CORS ─────────────────────────────────────────────────────────────────────
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
+
+// ── Storage (Upstash Redis + in-memory fallback) ──────────────────────────────
+
+const USE_REDIS = !!(
+  (process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL) &&
+  (process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN)
+);
+
+const memStrings = new Map();
+const memLists   = new Map();
+
+function memCmd([op, key, ...args]) {
+  switch (op) {
+    case 'SET':    memStrings.set(key, args[0]); return 'OK';
+    case 'GET':    return memStrings.get(key) ?? null;
+    case 'DEL':    { const had = memStrings.has(key); memStrings.delete(key); return had ? 1 : 0; }
+    case 'LPUSH':  { const list = memLists.get(key) ?? []; list.unshift(args[0]); memLists.set(key, list); return list.length; }
+    case 'LRANGE': { const list = memLists.get(key) ?? []; const s = parseInt(args[0], 10), e = parseInt(args[1], 10); return e === -1 ? list.slice(s) : list.slice(s, e + 1); }
+    case 'LREM':   { const list = memLists.get(key) ?? []; const next = list.filter(v => v !== args[1]); memLists.set(key, next); return list.length - next.length; }
+    default: return null;
+  }
+}
+
+function getRedisConfig() {
+  return {
+    url:   process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN,
+  };
+}
+
+async function redisCmd(command) {
+  const { url, token } = getRedisConfig();
+  const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(command) });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data.result;
+}
+
+async function redisPipeline(commands) {
+  const { url, token } = getRedisConfig();
+  const res = await fetch(`${url}/pipeline`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(commands) });
+  const results = await res.json();
+  return results.map(r => r.result);
+}
+
+async function dbCmd(command)      { return USE_REDIS ? redisCmd(command)       : Promise.resolve(memCmd(command)); }
+async function dbPipeline(commands){ return USE_REDIS ? redisPipeline(commands) : Promise.resolve(commands.map(memCmd)); }
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+const ADMIN_USERNAME = 'admin';
+const ADMIN_PASSWORD = '123456';
+
+function authLogin(req, res) {
+  const { username, password } = req.body ?? {};
+  if (!username || !password) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '用户名和密码不能为空' } });
+  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) return res.status(401).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: '用户名或密码错误' } });
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const token = Buffer.from(JSON.stringify({ username, role: 'admin', expiresAt })).toString('base64');
+  return res.status(200).json({ success: true, data: { token, user: { username, role: 'admin' }, expiresAt } });
+}
+
+function authLogout(_req, res) {
+  return res.status(200).json({ success: true, data: { message: '已退出登录' } });
+}
+
+function authRegister(_req, res) {
+  return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '注册功能已关闭，请联系管理员' } });
+}
+
+function authVerify(req, res) {
+  const { token } = req.body ?? {};
+  if (!token) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'token 必填' } });
+  try {
+    const payload = JSON.parse(Buffer.from(token, 'base64').toString('utf-8'));
+    if (!payload.username || !payload.expiresAt) throw new Error('invalid');
+    if (new Date(payload.expiresAt) < new Date()) return res.status(401).json({ success: false, error: { code: 'TOKEN_EXPIRED', message: '登录已过期' } });
+    return res.status(200).json({ success: true, data: { user: { username: payload.username, role: payload.role } } });
+  } catch {
+    return res.status(401).json({ success: false, error: { code: 'INVALID_TOKEN', message: '无效的 token' } });
+  }
+}
+
+// ── Inquiry ───────────────────────────────────────────────────────────────────
+
+function parsePrice(v) {
+  if (typeof v === 'number') return v;
+  return parseFloat(String(v ?? 0).replace(/[^0-9.]/g, '')) || 0;
+}
+
+const VALID_TRANSITIONS = {
+  new:              ['quoted', 'pending_recovery', 'accepted'],
+  quoted:           ['pending_recovery', 'accepted', 'rejected'],
+  pending_recovery: ['accepted', 'processing', 'completed'],
+  accepted:         ['processing'],
+  rejected:         [],
+  processing:       ['completed'],
+  completed:        [],
+};
+
+const VALID_INIT_STATUSES = ['new', 'pending_recovery', 'accepted'];
+
+async function inquiryCreate(req, res) {
+  const { userName, contact, address = '', userType = 'personal', note = '', status: reqStatus, products = [], estimatedTotal } = req.body ?? {};
+  if (!userName || !contact) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '姓名和联系方式不能为空' } });
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const inquiry = {
+    id,
+    userName, customerName: userName,
+    contact, phone: contact,
+    address: address ?? '',
+    userType,
+    status: (reqStatus && VALID_INIT_STATUSES.includes(reqStatus)) ? reqStatus : 'new',
+    estimatedTotal: typeof estimatedTotal === 'number' ? estimatedTotal : parsePrice(estimatedTotal),
+    note: note ?? '',
+    products: (products ?? []).map(p => ({
+      id: crypto.randomUUID(), inquiryId: id,
+      title: p.title ?? p.name ?? '未知商品',
+      name: p.name ?? p.title ?? '未知商品',
+      category: p.category ?? '其他',
+      brand: p.brand ?? '未知品牌',
+      images: p.images ?? (p.thumbnail ? [p.thumbnail] : []),
+      thumbnail: p.thumbnail ?? p.images?.[0] ?? null,
+      condition: p.condition ?? 'used',
+      estimatedPrice: parsePrice(p.estimatedPrice),
+      quantity: typeof p.quantity === 'number' ? p.quantity : 1,
+    })),
+    createdAt: now, updatedAt: now,
+  };
+  try {
+    await dbCmd(['SET', `inquiry:${id}`, JSON.stringify(inquiry)]);
+    await dbCmd(['LPUSH', 'inquiry:list', id]);
+    return res.status(200).json({ success: true, data: { inquiry } });
+  } catch (err) {
+    console.error('inquiry/create error:', err);
+    return res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '存储失败，请检查数据库配置' } });
+  }
+}
+
+async function inquiryList(req, res) {
+  try {
+    const ids = await dbCmd(['LRANGE', 'inquiry:list', 0, -1]);
+    if (!ids || ids.length === 0) return res.status(200).json({ success: true, data: { inquiries: [] } });
+    const jsons = await dbPipeline(ids.map(id => ['GET', `inquiry:${id}`]));
+    const { status } = req.body ?? {};
+    const inquiries = jsons
+      .filter(Boolean).map(j => JSON.parse(j))
+      .filter(inq => !status || inq.status === status)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return res.status(200).json({ success: true, data: { inquiries } });
+  } catch (err) {
+    console.error('inquiry/list error:', err);
+    return res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '加载失败' } });
+  }
+}
+
+async function inquiryGet(req, res) {
+  const { id } = req.body ?? {};
+  if (!id) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'id 必填' } });
+  try {
+    const json = await dbCmd(['GET', `inquiry:${id}`]);
+    if (!json) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: '询价不存在' } });
+    return res.status(200).json({ success: true, data: { inquiry: JSON.parse(json) } });
+  } catch (err) {
+    console.error('inquiry/get error:', err);
+    return res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '查询失败' } });
+  }
+}
+
+async function inquiryUpdate(req, res) {
+  const { id, ...patch } = req.body ?? {};
+  if (!id) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'id 必填' } });
+  try {
+    const json = await dbCmd(['GET', `inquiry:${id}`]);
+    if (!json) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: '询价不存在' } });
+    const inquiry = { ...JSON.parse(json), ...patch, id, updatedAt: new Date().toISOString() };
+    await dbCmd(['SET', `inquiry:${id}`, JSON.stringify(inquiry)]);
+    return res.status(200).json({ success: true, data: { inquiry } });
+  } catch (err) {
+    console.error('inquiry/update error:', err);
+    return res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '更新失败' } });
+  }
+}
+
+async function inquiryUpdateStatus(req, res) {
+  const { id, status } = req.body ?? {};
+  if (!id || !status) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'id 和 status 必填' } });
+  try {
+    const json = await dbCmd(['GET', `inquiry:${id}`]);
+    if (!json) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: '询价不存在' } });
+    const inquiry = JSON.parse(json);
+    const allowed = VALID_TRANSITIONS[inquiry.status] ?? [];
+    if (!allowed.includes(status)) return res.status(400).json({ success: false, error: { code: 'INVALID_TRANSITION', message: `不能从 ${inquiry.status} 转换到 ${status}` } });
+    inquiry.status = status;
+    inquiry.updatedAt = new Date().toISOString();
+    await dbCmd(['SET', `inquiry:${id}`, JSON.stringify(inquiry)]);
+    return res.status(200).json({ success: true, data: { inquiry } });
+  } catch (err) {
+    console.error('inquiry/update-status error:', err);
+    return res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '更新失败' } });
+  }
+}
+
+async function inquiryDelete(req, res) {
+  const { id } = req.body ?? {};
+  if (!id) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'id 必填' } });
+  try {
+    await dbCmd(['LREM', 'inquiry:list', 0, id]);
+    await dbCmd(['DEL', `inquiry:${id}`]);
+    return res.status(200).json({ success: true, data: { message: '已删除' } });
+  } catch (err) {
+    console.error('inquiry/delete error:', err);
+    return res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '删除失败' } });
+  }
+}
+
+async function inquiryStatistics(_req, res) {
+  try {
+    const ids = await dbCmd(['LRANGE', 'inquiry:list', 0, -1]);
+    if (!ids || ids.length === 0) return res.status(200).json({ success: true, data: { total: 0, new: 0, quoted: 0, pending_recovery: 0, accepted: 0, rejected: 0, processing: 0, completed: 0, totalValue: 0 } });
+    const jsons = await dbPipeline(ids.map(id => ['GET', `inquiry:${id}`]));
+    const all = jsons.filter(Boolean).map(j => JSON.parse(j));
+    const count = s => all.filter(i => i.status === s).length;
+    return res.status(200).json({ success: true, data: { total: all.length, new: count('new'), quoted: count('quoted'), pending_recovery: count('pending_recovery'), accepted: count('accepted'), rejected: count('rejected'), processing: count('processing'), completed: count('completed'), totalValue: all.reduce((sum, i) => sum + (i.estimatedTotal ?? 0), 0) } });
+  } catch (err) {
+    console.error('inquiry/statistics error:', err);
+    return res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '统计失败' } });
+  }
+}
+
+async function logisticsSelect(req, res) {
+  const { inquiryId, type, address, contactName, contactPhone, timeSlot, shippingAddress, notes } = req.body ?? {};
+  if (!inquiryId || !type) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'inquiryId 和 type 必填' } });
+  try {
+    const json = await dbCmd(['GET', `inquiry:${inquiryId}`]);
+    if (!json) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: '询价不存在' } });
+    const inquiry = JSON.parse(json);
+    inquiry.logistics = { type, address, contactName, contactPhone, timeSlot, shippingAddress, notes };
+    inquiry.acceptedShippingMethod = type;
+    inquiry.updatedAt = new Date().toISOString();
+    await dbCmd(['SET', `inquiry:${inquiryId}`, JSON.stringify(inquiry)]);
+    return res.status(200).json({ success: true, data: { logistics: inquiry.logistics } });
+  } catch (err) {
+    console.error('logistics/select error:', err);
+    return res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: '保存失败' } });
+  }
+}
+
+// ── AI helpers ────────────────────────────────────────────────────────────────
 
 function parseJson(text) {
   try { return JSON.parse(text.trim()); } catch { /* */ }
@@ -50,13 +302,11 @@ async function kimiChat({ model = 'moonshot-v1-8k', messages, retries = 2 }) {
   throw lastErr;
 }
 
-// ── Identify ──────────────────────────────────────────────────────────────
+// ── Identify ──────────────────────────────────────────────────────────────────
 
 async function handleIdentify(req, res) {
   const { image, text } = req.body ?? {};
-  if (!image && !text) {
-    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Missing image or text' } });
-  }
+  if (!image && !text) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Missing image or text' } });
   try {
     let parsed;
     if (image) {
@@ -80,18 +330,14 @@ async function handleIdentify(req, res) {
       });
       parsed = parseJson(raw);
     }
-    return res.status(200).json({ success: true, data: {
-      name: parsed?.name || '未知商品',
-      category: parsed?.category || '其他',
-      brand: parsed?.brand || '未知',
-    }});
+    return res.status(200).json({ success: true, data: { name: parsed?.name || '未知商品', category: parsed?.category || '其他', brand: parsed?.brand || '未知' } });
   } catch (err) {
     console.error('[identify]', err.message);
     return res.status(500).json({ success: false, error: { code: 'AI_ERROR', message: 'AI identification failed' } });
   }
 }
 
-// ── Pricing ───────────────────────────────────────────────────────────────
+// ── Pricing ───────────────────────────────────────────────────────────────────
 
 const PRICING_SYSTEM = `你是二手收货商"小收"，通过微信帮卖家评估回收价格。说话接地气、简短，像朋友聊天。
 
@@ -130,9 +376,7 @@ recommended_method：pickup=大件/批量多/难搬运；shipping=小件/数量�
 
 async function handlePricing(req, res) {
   const { messages } = req.body ?? {};
-  if (!messages || !Array.isArray(messages)) {
-    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Missing messages array' } });
-  }
+  if (!messages || !Array.isArray(messages)) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Missing messages array' } });
   try {
     const trimmed = messages.length > 9 ? [messages[0], ...messages.slice(-8)] : messages;
     const allMessages = [{ role: 'system', content: PRICING_SYSTEM }, ...trimmed];
@@ -154,12 +398,27 @@ async function handlePricing(req, res) {
   }
 }
 
-// ── Dispatch ──────────────────────────────────────────────────────────────
+// ── Route table ───────────────────────────────────────────────────────────────
 
 const ROUTES = {
-  'identify/analyze': handleIdentify,
-  'pricing/calculate': handlePricing,
+  'auth/login':              authLogin,
+  'auth/logout':             authLogout,
+  'auth/register':           authRegister,
+  'auth/verify':             authVerify,
+  'inquiry/create':          inquiryCreate,
+  'inquiry/save':            inquiryCreate,
+  'inquiry/list':            inquiryList,
+  'inquiry/get':             inquiryGet,
+  'inquiry/update':          inquiryUpdate,
+  'inquiry/update-status':   inquiryUpdateStatus,
+  'inquiry/delete':          inquiryDelete,
+  'inquiry/statistics':      inquiryStatistics,
+  'logistics/select':        logisticsSelect,
+  'identify/analyze':        handleIdentify,
+  'pricing/calculate':       handlePricing,
 };
+
+// ── Entry point ───────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
   cors(res);
