@@ -59,7 +59,8 @@ export function AdminLayout() {
       else setLoadError(inquiryRes.error?.message || '加载失败');
       if (statsRes.success) setStatistics(statsRes.data);
     } catch {
-      setLoadError('无法连接到后端，请确认数据库已配置或本地服务器已启动');
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      setLoadError(isLocal ? '本地后端未启动，请运行 npm run dev' : '网络异常，请点击重试');
     } finally {
       setLoading(false);
     }
@@ -164,9 +165,8 @@ export function AdminLayout() {
           <div className="px-5 py-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
             <span className="text-red-500 text-lg flex-shrink-0">⚠️</span>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-red-700">后端连接失败</p>
+              <p className="text-sm font-semibold text-red-700">加载失败</p>
               <p className="text-xs text-red-600 mt-0.5">{loadError}</p>
-              <p className="text-xs text-slate-500 mt-1.5">本地开发：请确保已运行 <code className="bg-red-100 px-1 py-0.5 rounded text-red-700 font-mono">npm run dev</code>（同时启动 Vite + 后端服务器）</p>
             </div>
             <button onClick={loadData} className="text-xs text-red-600 hover:text-red-800 font-semibold px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors flex-shrink-0">
               重试
