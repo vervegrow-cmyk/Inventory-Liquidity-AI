@@ -102,13 +102,14 @@ export function getStatistics(predicate) {
   const byStatus = (s) => all.filter(r => r.status === s).length;
 
   return {
-    total:      all.length,
-    new:        byStatus('new'),
-    quoted:     byStatus('quoted'),
-    accepted:   byStatus('accepted'),
-    rejected:   byStatus('rejected'),
-    processing: byStatus('processing'),
-    completed:  byStatus('completed'),
-    totalValue: sum(all, 'estimatedTotal'),
+    total:            all.length,
+    new:              byStatus('new'),
+    quoted:           byStatus('quoted'),
+    pending_recovery: byStatus('pending_recovery'),
+    accepted:         byStatus('accepted'),
+    rejected:         byStatus('rejected'),
+    processing:       byStatus('processing'),
+    completed:        byStatus('completed'),
+    totalValue:       sum(all, 'estimatedTotal'),
   };
 }

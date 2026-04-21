@@ -27,13 +27,14 @@ export function AdminPage({ onBack }: Props) {
   const filtered = filterStatus === 'all' ? inquiries : inquiries.filter(q => q.status === filterStatus);
 
   const counts: Record<InquiryStatus | 'all', number> = {
-    all:        inquiries.length,
-    new:        inquiries.filter(q => q.status === 'new').length,
-    quoted:     inquiries.filter(q => q.status === 'quoted').length,
-    accepted:   inquiries.filter(q => q.status === 'accepted').length,
-    rejected:   inquiries.filter(q => q.status === 'rejected').length,
-    processing: inquiries.filter(q => q.status === 'processing').length,
-    completed:  inquiries.filter(q => q.status === 'completed').length,
+    all:              inquiries.length,
+    new:              inquiries.filter(q => q.status === 'new').length,
+    quoted:           inquiries.filter(q => q.status === 'quoted').length,
+    pending_recovery: inquiries.filter(q => q.status === 'pending_recovery').length,
+    accepted:         inquiries.filter(q => q.status === 'accepted').length,
+    rejected:         inquiries.filter(q => q.status === 'rejected').length,
+    processing:       inquiries.filter(q => q.status === 'processing').length,
+    completed:        inquiries.filter(q => q.status === 'completed').length,
   };
 
   if (!inquiries.length) {

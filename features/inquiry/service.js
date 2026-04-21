@@ -7,12 +7,13 @@ import * as repo from './repository.js';
 
 // ── Status machine ────────────────────────────────────────────────────────
 const TRANSITIONS = {
-  new:        ['quoted'],
-  quoted:     ['accepted', 'rejected'],
-  accepted:   ['processing'],
-  rejected:   [],
-  processing: ['completed'],
-  completed:  [],
+  new:              ['quoted', 'pending_recovery', 'accepted'],
+  quoted:           ['pending_recovery', 'accepted', 'rejected'],
+  pending_recovery: ['accepted', 'processing', 'completed'],
+  accepted:         ['processing'],
+  rejected:         [],
+  processing:       ['completed'],
+  completed:        [],
 };
 
 const VALID_USER_TYPES  = ['personal', 'seller', 'broker'];
@@ -20,15 +21,18 @@ const VALID_STATUSES    = Object.keys(TRANSITIONS);
 
 // ── Create ─────────────────────────────────────────────────────────────────
 
-export function createInquiry({ userName, contact, userType = 'personal', note, products = [], estimatedTotal }) {
+export function createInquiry({ userName, contact, userType = 'personal', note, products = [], estimatedTotal, status, address, city, country }) {
+  const validStatuses = Object.keys(TRANSITIONS);
   const inquiry = repo.createInquiry({
     userName,
     contact,
-    // Friendly aliases
+    address:      address ?? '',
+    city:         city ?? '',
+    country:      country ?? '',
     customerName: userName,
     phone:        contact,
     userType: VALID_USER_TYPES.includes(userType) ? userType : 'personal',
-    status: 'new',
+    status: validStatuses.includes(status) ? status : 'new',
     estimatedTotal: typeof estimatedTotal === 'number' ? estimatedTotal : 0,
     note: note ?? '',
   });

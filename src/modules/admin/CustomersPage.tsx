@@ -14,11 +14,13 @@ interface CustomerGroup {
   key: string;
   userName: string;
   contact: string;
+  address: string;
   inquiries: Inquiry[];
   totalProducts: number;
   totalValue: number;
   latestAt: string;
   hasNew: boolean;
+  pendingRecoveryCount: number;
 }
 
 type NP = InquiryProduct & {
@@ -58,8 +60,9 @@ export function CustomersPage() {
       if (!map.has(key)) {
         map.set(key, {
           key, userName: inq.userName, contact: inq.contact,
+          address: inq.address ?? '',
           inquiries: [], totalProducts: 0, totalValue: 0,
-          latestAt: inq.createdAt, hasNew: false,
+          latestAt: inq.createdAt, hasNew: false, pendingRecoveryCount: 0,
         });
       }
       const g = map.get(key)!;
@@ -68,6 +71,8 @@ export function CustomersPage() {
       g.totalValue += inq.estimatedTotal ?? 0;
       if (inq.createdAt > g.latestAt) g.latestAt = inq.createdAt;
       if (inq.status === 'new' || inq.status === 'quoted') g.hasNew = true;
+      if (inq.status === 'pending_recovery') g.pendingRecoveryCount += 1;
+      if (inq.address && !g.address) g.address = inq.address;
     }
     return Array.from(map.values()).sort((a, b) => b.latestAt.localeCompare(a.latestAt));
   }, [inquiries]);
@@ -81,14 +86,19 @@ export function CustomersPage() {
 
   const selectedCustomer = selectedKey ? filteredCustomers.find(g => g.key === selectedKey) : null;
 
-  if (loading) return <div className="text-center py-16 text-slate-400">加载中...</div>;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center py-20 gap-3">
+      <div className="w-8 h-8 border-2 border-violet-300 border-t-violet-600 rounded-full animate-spin" />
+      <p className="text-sm text-slate-400">正在加载客户数据...</p>
+    </div>
+  );
 
   if (filteredCustomers.length === 0 && !searchQuery) {
     return (
-      <div className="text-center py-16">
-        <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-3xl mx-auto mb-4">📭</div>
-        <p className="text-lg font-bold text-slate-700">暂无询价记录</p>
-        <p className="text-sm text-slate-400 mt-1">客户提交询价后将在此显示</p>
+      <div className="text-center py-20">
+        <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-4xl mx-auto mb-5">📭</div>
+        <p className="text-xl font-bold text-slate-700">暂无客户询价</p>
+        <p className="text-sm text-slate-400 mt-2 max-w-sm mx-auto">客户在前台填写姓名和联系方式并提交回收询价后，将按客户分组展示在这里</p>
       </div>
     );
   }
@@ -138,10 +148,13 @@ export function CustomersPage() {
                     {g.hasNew && <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400" />}
                   </div>
                   <p className="text-xs text-slate-400 truncate">{g.contact}</p>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-1.5 mt-1">
                     <span className="text-[10px] text-slate-500">{g.inquiries.length}次询价</span>
-                    <span className="text-slate-300">·</span>
+                    <span className="text-slate-300">|</span>
                     <span className="text-[10px] font-semibold text-violet-600">¥{g.totalValue.toLocaleString()}</span>
+                    {g.pendingRecoveryCount > 0 && (
+                      <span className="ml-auto text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-semibold">{g.pendingRecoveryCount}待回收</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -218,23 +231,37 @@ function CustomerInquiryPanel({
             <div>
               <p className="text-lg font-bold text-slate-900">{customer.userName}</p>
               <p className="text-sm text-slate-500">{customer.contact}</p>
+              {customer.address && (
+                <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                  <span>📍</span>{customer.address}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-4 text-center">
-            <div><p className="text-xl font-bold text-slate-900">{customer.inquiries.length}</p><p className="text-xs text-slate-400">次询价</p></div>
+            <div>
+              <p className="text-xl font-bold text-slate-900">{customer.inquiries.length}</p>
+              <p className="text-xs text-slate-400">次询价</p>
+            </div>
             <div className="w-px h-8 bg-slate-200" />
-            <div><p className="text-xl font-bold text-slate-900">{customer.totalProducts}</p><p className="text-xs text-slate-400">件商品</p></div>
+            <div>
+              <p className="text-xl font-bold text-slate-900">{customer.totalProducts}</p>
+              <p className="text-xs text-slate-400">件商品</p>
+            </div>
             <div className="w-px h-8 bg-slate-200" />
-            <div><p className="text-xl font-bold text-violet-700">¥{customer.totalValue.toLocaleString()}</p><p className="text-xs text-slate-400">总估值</p></div>
+            <div>
+              <p className="text-xl font-bold text-violet-700">¥{customer.totalValue.toLocaleString()}</p>
+              <p className="text-xs text-slate-400">总估值</p>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 mt-4">
-          {(['new', 'quoted', 'accepted', 'processing'] as const).map(s => {
+        <div className="flex items-center gap-2 mt-4 flex-wrap">
+          {(['new', 'quoted', 'pending_recovery', 'accepted', 'processing'] as const).map(s => {
             const count = customer.inquiries.filter(q => q.status === s).length;
             if (count === 0) return null;
             return <span key={s} className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${INQUIRY_STATUS_COLORS[s]}`}>{INQUIRY_STATUS_LABELS[s]} {count}</span>;
           })}
-          <span className="text-xs text-slate-400 ml-1">最近活跃：{new Date(customer.latestAt).toLocaleDateString('zh-CN')}</span>
+          <span className="text-xs text-slate-400 ml-auto">最近活跃：{new Date(customer.latestAt).toLocaleDateString('zh-CN')}</span>
         </div>
       </div>
 
@@ -265,7 +292,11 @@ function CustomerInquiryPanel({
                       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${INQUIRY_STATUS_COLORS[inq.status]}`}>{INQUIRY_STATUS_LABELS[inq.status]}</span>
                       {shippingMethod && <span className="text-xs text-slate-500">{SHIPPING_METHOD_ICONS[shippingMethod]} {SHIPPING_METHOD_LABELS[shippingMethod]}</span>}
                     </div>
-                    <p className="text-xs text-slate-400 mt-0.5">{products.length} 件商品 · 估值 <span className="font-semibold text-violet-700">¥{(inq.estimatedTotal ?? 0).toLocaleString()}</span></p>
+                    <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
+                      <span>{products.length} 件商品</span>
+                      <span className="text-slate-300">|</span>
+                      <span className="font-semibold text-violet-700">¥{(inq.estimatedTotal ?? 0).toLocaleString()}</span>
+                    </p>
                   </div>
                   <div className="flex -space-x-1.5 flex-shrink-0">
                     {products.slice(0, 4).map((p, i) => (

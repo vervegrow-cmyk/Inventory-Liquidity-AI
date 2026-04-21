@@ -6,6 +6,7 @@ export type UserType = 'personal' | 'seller' | 'broker';
 export type InquiryStatus =
   | 'new'
   | 'quoted'
+  | 'pending_recovery'
   | 'accepted'
   | 'rejected'
   | 'processing'
@@ -77,6 +78,9 @@ export interface Inquiry {
   phone: string;
   userName: string;
   contact: string;
+  address?: string;
+  city?: string;
+  country?: string;
   userType: UserType;
   status: InquiryStatus;
   estimatedTotal: number;
@@ -134,6 +138,7 @@ export interface InquiryStatistics {
   total: number;
   new: number;
   quoted: number;
+  pending_recovery: number;
   accepted: number;
   rejected: number;
   processing: number;
@@ -144,21 +149,23 @@ export interface InquiryStatistics {
 // ── UI helpers ────────────────────────────────────────────────────────────────
 
 export const INQUIRY_STATUS_LABELS: Record<InquiryStatus, string> = {
-  new:        '待估价',
-  quoted:     '已出价',
-  accepted:   '已接受',
-  rejected:   '已拒绝',
-  processing: '处理中',
-  completed:  '已完成',
+  new:              '待估价',
+  quoted:           '已出价',
+  pending_recovery: '待回收',
+  accepted:         '已确认',
+  rejected:         '已拒绝',
+  processing:       '处理中',
+  completed:        '已完成',
 };
 
 export const INQUIRY_STATUS_COLORS: Record<InquiryStatus, string> = {
-  new:        'bg-amber-100 text-amber-700',
-  quoted:     'bg-blue-100 text-blue-700',
-  accepted:   'bg-emerald-100 text-emerald-700',
-  rejected:   'bg-red-100 text-red-700',
-  processing: 'bg-indigo-100 text-indigo-700',
-  completed:  'bg-green-100 text-green-700',
+  new:              'bg-amber-100 text-amber-700',
+  quoted:           'bg-blue-100 text-blue-700',
+  pending_recovery: 'bg-purple-100 text-purple-700',
+  accepted:         'bg-emerald-100 text-emerald-700',
+  rejected:         'bg-red-100 text-red-700',
+  processing:       'bg-indigo-100 text-indigo-700',
+  completed:        'bg-green-100 text-green-700',
 };
 
 export const PRODUCT_CONDITION_LABELS: Record<ProductCondition, string> = {

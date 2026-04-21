@@ -9,7 +9,7 @@ import * as svc from './service.js';
 
 // ── POST /api/inquiry/create ───────────────────────────────────────────────
 export async function inquiryCreateController(body) {
-  const { userName, contact, userType, note, products, estimatedTotal } = body ?? {};
+  const { userName, contact, userType, note, products, estimatedTotal, status, address, city, country } = body ?? {};
 
   if (!userName?.trim())  return fail(ErrorCode.VALIDATION_ERROR, '姓名不能为空');
   if (!contact?.trim())   return fail(ErrorCode.VALIDATION_ERROR, '联系方式不能为空');
@@ -17,7 +17,7 @@ export async function inquiryCreateController(body) {
   if (contact.length  > 100) return fail(ErrorCode.VALIDATION_ERROR, '联系方式过长');
 
   try {
-    const result = svc.createInquiry({ userName, contact, userType, note, products, estimatedTotal });
+    const result = svc.createInquiry({ userName, contact, userType, note, products, estimatedTotal, status, address, city, country });
     return success(result, '询价创建成功');
   } catch (err) {
     return fail(ErrorCode.INTERNAL_ERROR, err.message);

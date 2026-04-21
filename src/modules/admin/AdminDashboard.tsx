@@ -45,7 +45,7 @@ function normalizeProduct(p: InquiryProduct): InquiryProduct & {
 export function AdminDashboard() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [statistics, setStatistics] = useState<InquiryStatistics>({
-    total: 0, new: 0, quoted: 0, accepted: 0, rejected: 0, processing: 0, completed: 0, totalValue: 0,
+    total: 0, new: 0, quoted: 0, pending_recovery: 0, accepted: 0, rejected: 0, processing: 0, completed: 0, totalValue: 0,
   });
   const [filterStatus, setFilterStatus] = useState<InquiryStatus | 'all'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);

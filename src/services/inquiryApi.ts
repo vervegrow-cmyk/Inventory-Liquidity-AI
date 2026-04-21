@@ -25,8 +25,12 @@ export async function getInquiry(id: string) {
 export async function saveInquiry(data: {
   userName: string;
   contact: string;
+  address?: string;
+  city?: string;
+  country?: string;
   userType?: string;
   note?: string;
+  status?: string;
   products: Array<{
     title?: string;
     name?: string;

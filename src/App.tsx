@@ -13,10 +13,8 @@ import { AdminLayout } from './modules/admin/AdminLayout';
 import { CustomersPage } from './modules/admin/CustomersPage';
 import { InquiryListPage } from './modules/admin/InquiryListPage';
 import { InquiryDetailRoute } from './modules/admin/InquiryDetailPage';
-import { InquirySubmitModal } from './modules/inquiry/InquirySubmitModal';
 import { useRecoveryStore } from './stores/recoveryStore';
 import { useAuthStore } from './stores/authStore';
-import type { InquiryProduct } from './types/inquiry';
 
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -75,7 +73,6 @@ export default function App() {
   const isValuation = !isAdmin && !isCart && !isOrders;
 
   const [showMethodModal, setShowMethodModal] = useState(false);
-  const [showInquiryModal, setShowInquiryModal] = useState(false);
   const cartCount = useRecoveryStore(s => s.cart.length);
 
 
@@ -545,16 +542,6 @@ export default function App() {
             </span>
           </button>
           <div className="flex items-center gap-2">
-            {/* Submit inquiry — visible when there are priced products */}
-            {isValuation && (phase === 'select' || phase === 'chatting') &&
-              (Object.keys(groupResults).length > 0 || Object.keys(spResults).length > 0) && (
-              <button
-                onClick={() => setShowInquiryModal(true)}
-                className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all"
-              >
-                📬 提交询价
-              </button>
-            )}
             {/* Add product shortcut — visible during select/chatting */}
             {isValuation && (phase === 'select' || phase === 'chatting') && (
               <button
@@ -601,43 +588,6 @@ export default function App() {
           </div>
         </div>
       </header>
-
-      {/* Inquiry Submit Modal */}
-      {showInquiryModal && (() => {
-        const parsePrice = (v: number | string | undefined): number => {
-          if (typeof v === 'number') return v;
-          return parseFloat((v ?? '0').replace(/[^0-9.]/g, '')) || 0;
-        };
-        const makeProduct = (
-          name: string, category: string, brand: string,
-          thumbnail: string | undefined, price: number
-        ): InquiryProduct => ({
-          id: '', inquiryId: '',
-          title: name, name, category, brand,
-          images: thumbnail ? [thumbnail] : [], thumbnail,
-          condition: 'used', quantity: 1, estimatedPrice: price,
-        });
-        const pricedProducts: InquiryProduct[] = fromSpreadsheet
-          ? spreadsheetProducts
-              .map((sp, i) => spResults[i]
-                ? makeProduct(sp.name, sp.category, sp.brand, sp.thumbnail, parsePrice(spResults[i].estimated_price))
-                : null)
-              .filter((p): p is InquiryProduct => p !== null)
-          : productGroups
-              .map((g, i) => groupResults[i]
-                ? makeProduct(g.name, g.category, g.brand, g.thumbnail, parsePrice(groupResults[i].estimated_price))
-                : null)
-              .filter((p): p is InquiryProduct => p !== null);
-        const estimatedTotal = pricedProducts.reduce((sum, p) => sum + (p.estimatedPrice ?? 0), 0);
-        return (
-          <InquirySubmitModal
-            products={pricedProducts}
-            estimatedTotal={Math.round(estimatedTotal)}
-            onClose={() => setShowInquiryModal(false)}
-            onSubmitted={() => { setShowInquiryModal(false); navigate('/admin/customers'); }}
-          />
-        );
-      })()}
 
       {/* Recovery Method Modal */}
       {showMethodModal && result && (

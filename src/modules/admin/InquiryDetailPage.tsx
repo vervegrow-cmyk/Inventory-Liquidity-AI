@@ -99,6 +99,11 @@ export function InquiryDetailPage({ inquiry, onBack, onStatusChange, onDelete }:
             <div>
               <p className="text-lg font-bold text-slate-900">{inquiry.userName}</p>
               <p className="text-sm text-slate-500">{inquiry.contact}</p>
+              {inquiry.address && (
+                <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                  <span>📍</span>{inquiry.address}
+                </p>
+              )}
             </div>
           </div>
           <div className="text-right">
@@ -168,47 +173,40 @@ export function InquiryDetailPage({ inquiry, onBack, onStatusChange, onDelete }:
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">操作</p>
         <div className="flex flex-wrap gap-2">
           {inquiry.status === 'new' && (
-            <button
-              onClick={() => handleStatusUpdate('quoted')}
-              disabled={updating}
-              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-all shadow-sm disabled:opacity-50"
-            >
+            <button onClick={() => handleStatusUpdate('quoted')} disabled={updating}
+              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-all shadow-sm disabled:opacity-50">
               💡 标记已出价
             </button>
           )}
-          {inquiry.status === 'quoted' && (
-            <>
-              <button
-                onClick={() => handleStatusUpdate('accepted')}
-                disabled={updating}
-                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-all shadow-sm disabled:opacity-50"
-              >
-                🤝 客户已接受
-              </button>
-              <button
-                onClick={() => handleStatusUpdate('rejected')}
-                disabled={updating}
-                className="px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 text-sm font-semibold transition-all disabled:opacity-50"
-              >
-                ✕ 客户已拒绝
-              </button>
-            </>
-          )}
+          {inquiry.status === 'quoted' && (<>
+            <button onClick={() => handleStatusUpdate('accepted')} disabled={updating}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-all shadow-sm disabled:opacity-50">
+              🤝 客户已接受
+            </button>
+            <button onClick={() => handleStatusUpdate('rejected')} disabled={updating}
+              className="px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 text-sm font-semibold transition-all disabled:opacity-50">
+              ✕ 客户已拒绝
+            </button>
+          </>)}
+          {inquiry.status === 'pending_recovery' && (<>
+            <button onClick={() => handleStatusUpdate('accepted')} disabled={updating}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-all shadow-sm disabled:opacity-50">
+              ✅ 确认回收
+            </button>
+            <button onClick={() => handleStatusUpdate('processing')} disabled={updating}
+              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all shadow-sm disabled:opacity-50">
+              🚀 开始处理
+            </button>
+          </>)}
           {inquiry.status === 'accepted' && (
-            <button
-              onClick={() => handleStatusUpdate('processing')}
-              disabled={updating}
-              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all shadow-sm disabled:opacity-50"
-            >
+            <button onClick={() => handleStatusUpdate('processing')} disabled={updating}
+              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all shadow-sm disabled:opacity-50">
               🚀 开始处理
             </button>
           )}
           {inquiry.status === 'processing' && (
-            <button
-              onClick={() => handleStatusUpdate('completed')}
-              disabled={updating}
-              className="px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-all shadow-sm disabled:opacity-50"
-            >
+            <button onClick={() => handleStatusUpdate('completed')} disabled={updating}
+              className="px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-all shadow-sm disabled:opacity-50">
               ✅ 标记完成
             </button>
           )}

@@ -4,39 +4,28 @@ import { INQUIRY_STATUS_LABELS, INQUIRY_STATUS_COLORS } from '../../types/inquir
 import { useAdminData } from './AdminLayout';
 
 export function InquiryListPage() {
-  const { inquiries, statistics, loading, handleStatusChange } = useAdminData();
+  const { inquiries, loading, handleStatusChange } = useAdminData();
   const navigate = useNavigate();
 
-  if (loading) return <div className="text-center py-16 text-slate-400">加载中...</div>;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center py-20 gap-3">
+      <div className="w-8 h-8 border-2 border-violet-300 border-t-violet-600 rounded-full animate-spin" />
+      <p className="text-sm text-slate-400">正在加载询价数据...</p>
+    </div>
+  );
 
   if (inquiries.length === 0) {
     return (
-      <div className="text-center py-16">
-        <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-3xl mx-auto mb-4">📭</div>
-        <p className="text-lg font-bold text-slate-700">暂无询价记录</p>
-        <p className="text-sm text-slate-400 mt-1">客户提交询价后将在此显示</p>
+      <div className="text-center py-20">
+        <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-4xl mx-auto mb-5">📭</div>
+        <p className="text-xl font-bold text-slate-700">暂无询价记录</p>
+        <p className="text-sm text-slate-400 mt-2 max-w-sm mx-auto">客户在前台提交回收询价后，将在此显示并可进行出价、跟进等操作</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {/* Stats summary */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {([
-          { label: '总询价', value: statistics.total, color: 'bg-blue-50 border-blue-100' },
-          { label: '待估价', value: statistics.new, color: 'bg-amber-50 border-amber-100' },
-          { label: '已出价', value: statistics.quoted, color: 'bg-indigo-50 border-indigo-100' },
-          { label: '已接受', value: statistics.accepted, color: 'bg-emerald-50 border-emerald-100' },
-          { label: '总估值', value: `¥${(statistics.totalValue / 10000).toFixed(1)}万`, color: 'bg-violet-50 border-violet-100' },
-        ] as const).map(s => (
-          <div key={s.label} className={`rounded-xl border p-4 ${s.color}`}>
-            <p className="text-xs text-slate-500 font-medium">{s.label}</p>
-            <p className="text-xl font-bold text-slate-900 mt-1">{String(s.value)}</p>
-          </div>
-        ))}
-      </div>
-
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
