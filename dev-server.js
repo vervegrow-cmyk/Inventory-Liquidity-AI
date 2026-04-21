@@ -120,7 +120,9 @@ const ROUTES = {
 const LEGACY = {
   '/api/chat':     pricingController,
   '/api/identify': identifyController,
-  '/api/pricing':  pricingController,
+  '/api/pricing':     pricingController,
+  '/api/ai/identify': identifyController,
+  '/api/ai/pricing':  pricingController,
   '/api/generate': generateController,
 
   // Map old /api/inquiry/save → new create

@@ -1,5 +1,8 @@
-// POST /api/pricing — AI multi-turn pricing conversation
+// POST /api/ai/identify  — AI product identification
+// POST /api/ai/pricing   — AI multi-turn pricing conversation
 // Self-contained: no imports outside api/
+
+console.log('api/ai/[action].js loaded');
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -50,6 +53,49 @@ async function kimiChat({ model = 'moonshot-v1-8k', messages, retries = 2 }) {
   throw lastErr;
 }
 
+// ── Identify ──────────────────────────────────────────────────────────────────
+
+async function handleIdentify(req, res) {
+  const { image, text } = req.body ?? {};
+  if (!image && !text) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Missing image or text' } });
+  }
+  try {
+    let parsed;
+    if (image) {
+      const raw = await kimiChat({
+        model: 'moonshot-v1-8k-vision-preview',
+        messages: [
+          { role: 'system', content: '你是商品识别专家。只返回合法 JSON，不要任何解释文字。' },
+          { role: 'user', content: [
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${image}` } },
+            { type: 'text', text: '识别图片中的商品，返回 JSON 格式：{"name":"商品名称","category":"商品类别","brand":"品牌，不确定则填未知"}' },
+          ]},
+        ],
+      });
+      parsed = parseJson(raw);
+    } else {
+      const raw = await kimiChat({
+        messages: [
+          { role: 'system', content: '你是商品识别专家。只返回合法 JSON，不要任何解释文字。' },
+          { role: 'user', content: `以下是商品表格数据，识别商品信息，返回 JSON：{"name":"商品名称","category":"类别","brand":"品牌"}\n\n${text}` },
+        ],
+      });
+      parsed = parseJson(raw);
+    }
+    return res.status(200).json({ success: true, data: {
+      name: parsed?.name || '未知商品',
+      category: parsed?.category || '其他',
+      brand: parsed?.brand || '未知',
+    }});
+  } catch (err) {
+    console.error('[ai/identify]', err.message);
+    return res.status(500).json({ success: false, error: { code: 'AI_ERROR', message: 'AI identification failed' } });
+  }
+}
+
+// ── Pricing ───────────────────────────────────────────────────────────────────
+
 const PRICING_SYSTEM = `你是二手收货商"小收"，通过微信帮卖家评估回收价格。说话接地气、简短，像朋友聊天。
 
 【每轮对话做两件事】
@@ -85,11 +131,7 @@ const PRICING_SYSTEM = `你是二手收货商"小收"，通过微信帮卖家评
 
 recommended_method：pickup=大件/批量多/难搬运；shipping=小件/数量少/易打包`;
 
-export default async function handler(req, res) {
-  cors(res);
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ success: false });
-
+async function handlePricing(req, res) {
   const { messages } = req.body ?? {};
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Missing messages array' } });
@@ -110,7 +152,32 @@ export default async function handler(req, res) {
     if (!parsed) throw new Error('Invalid AI response after retry');
     return res.status(200).json({ success: true, data: parsed });
   } catch (err) {
-    console.error('[pricing]', err.message);
+    console.error('[ai/pricing]', err.message);
     return res.status(500).json({ success: false, error: { code: 'AI_ERROR', message: 'AI pricing failed' } });
+  }
+}
+
+// ── Dispatch ──────────────────────────────────────────────────────────────────
+
+const HANDLERS = {
+  identify: handleIdentify,
+  pricing:  handlePricing,
+};
+
+export default async function handler(req, res) {
+  console.log(`API HIT: /api/ai/${req.query.action}`, req.method);
+  cors(res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ success: false });
+
+  const fn = HANDLERS[req.query.action];
+  if (!fn) {
+    return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: `Unknown AI action: ${req.query.action}` } });
+  }
+  try {
+    return await fn(req, res);
+  } catch (err) {
+    console.error(`[ai/${req.query.action}]`, err);
+    return res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } });
   }
 }

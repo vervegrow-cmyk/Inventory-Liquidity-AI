@@ -1,7 +1,7 @@
 import type { Product, ApiResponse } from '../types';
 
 export async function callIdentifyApi(params: { image?: string; text?: string }): Promise<Product> {
-  const res = await fetch('/api/identify', {
+  const res = await fetch('/api/ai/identify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),

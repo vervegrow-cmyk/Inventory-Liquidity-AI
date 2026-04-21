@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.2] - 2026-04-21
+
+### Fixed
+- 管理后台恢复：`vercel.json` 改回负向前瞻 rewrite，`/(.*) → /index.html` 会拦截 API 调用导致所有接口返回 HTML
+- AI 接口 404 根本原因确认：Vercel 不调用 `api/` 根目录下的静态文件函数（如 `api/identify.js`），只有子目录函数（如 `api/auth/[action].js`）可靠
+- 新建 `api/ai/[action].js` 采用与 auth/inquiry 相同的子目录+动态段模式，处理 `/api/ai/identify` 和 `/api/ai/pricing`
+
+### Changed
+- 前端 `/api/identify` → `/api/ai/identify`
+- 前端 `/api/pricing` → `/api/ai/pricing`
+- 删除不生效的 `api/identify.js`、`api/pricing.js`
+- `vercel.json` 恢复 `/((?!api/).*) → /index.html` 负向前瞻
+
+---
+
 ## [0.1.1] - 2026-04-21
 
 ### Fixed
