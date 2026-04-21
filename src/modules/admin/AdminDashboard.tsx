@@ -111,7 +111,7 @@ export function AdminDashboard() {
       }
       const g = map.get(key)!;
       g.inquiries.push(inq);
-      g.totalProducts += inq.products.length;
+      g.totalProducts += inq.products?.length ?? 0;
       g.totalValue += inq.estimatedTotal ?? 0;
       if (inq.createdAt > g.latestAt) g.latestAt = inq.createdAt;
       if (inq.status === 'pending' || inq.status === 'priced') g.hasNew = true;

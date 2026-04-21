@@ -92,7 +92,13 @@ export function listInquiries({ status, userType, keyword, page = 1, limit = 50 
   const offset    = (safePage - 1) * safeLimit;
   const items     = results.slice(offset, offset + safeLimit);
 
-  return { inquiries: items, total, page: safePage, limit: safeLimit };
+  // Embed products into each inquiry for the list view
+  const inquiries = items.map(inq => ({
+    ...inq,
+    products: repo.findProductsByInquiry(inq.id),
+  }));
+
+  return { inquiries, total, page: safePage, limit: safeLimit };
 }
 
 // ── Update ────────────────────────────────────────────────────────────────
