@@ -104,7 +104,7 @@ export function CustomersPage() {
   }
 
   return (
-    <div className="flex gap-5 items-start">
+    <div className="flex gap-5 items-stretch min-h-[calc(100vh-280px)]">
       {/* Left: sidebar */}
       <SidebarLayout>
         {/* Search bar */}
@@ -155,7 +155,7 @@ export function CustomersPage() {
             onViewDetail={id => navigate(`/admin/inquiries/${id}`)}
           />
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm h-64 flex flex-col items-center justify-center gap-2 text-center">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 text-center">
             <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-2xl">👈</div>
             <p className="text-sm font-semibold text-slate-600">从左侧选择客户</p>
             <p className="text-xs text-slate-400">查看该客户的所有询价和商品明细</p>
@@ -170,7 +170,7 @@ export function CustomersPage() {
 
 function SidebarLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="w-80 flex-shrink-0 flex flex-col gap-3">
+    <div className="w-80 flex-shrink-0 flex flex-col gap-3 h-full">
       {children}
     </div>
   );
