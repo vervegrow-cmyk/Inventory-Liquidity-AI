@@ -27,7 +27,8 @@ export function parsePrice(s: string | number | undefined | null): number {
   if (rangeMatch) {
     return (parseFloat(rangeMatch[1]) + parseFloat(rangeMatch[2])) / 2;
   }
-  return parseFloat(clean.replace(/[^0-9.]/g, '')) || 0;
+  const scalar = clean.match(/^(\d+(?:\.\d+)?)$/);
+  return scalar ? parseFloat(scalar[1]) : 0;
 }
 
 export function findByKeywords(obj: Record<string, string>, kws: string[]): string {
