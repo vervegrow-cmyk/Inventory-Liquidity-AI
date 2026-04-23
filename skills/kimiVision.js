@@ -1,10 +1,10 @@
-import { kimiChat } from './kimiClient.js';
+import { openaiChat } from './openaiClient.js';
 import { parseJson } from '../lib/utils.js';
 
 /** Identify a product from a base64 image using vision model. */
 export async function kimiVisionIdentify(imageBase64) {
-  const text = await kimiChat({
-    model: 'moonshot-v1-8k-vision-preview',
+  const text = await openaiChat({
+    model: 'gpt-4o',
     messages: [
       { role: 'system', content: '你是商品识别专家。只返回合法 JSON，不要任何解释文字。' },
       {
@@ -21,7 +21,7 @@ export async function kimiVisionIdentify(imageBase64) {
 
 /** Identify a product from spreadsheet row text. */
 export async function kimiTextIdentify(rowText) {
-  const text = await kimiChat({
+  const text = await openaiChat({
     messages: [
       { role: 'system', content: '你是商品识别专家。只返回合法 JSON，不要任何解释文字。' },
       { role: 'user', content: `以下是商品表格数据，识别商品信息，返回 JSON：{"name":"商品名称","category":"类别","brand":"品牌"}\n\n${rowText}` },

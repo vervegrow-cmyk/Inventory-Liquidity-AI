@@ -1,4 +1,4 @@
-import { kimiChat } from '../skills/kimiClient.js';
+import { openaiChat } from '../skills/openaiClient.js';
 import { parseJson } from '../lib/utils.js';
 
 const SYSTEM_PROMPT = `你是二手收货商"小收"，帮卖家快速评估回收价格。说话简短接地气，像朋友聊天。
@@ -77,12 +77,12 @@ export async function runPricingTurn(messages) {
     : messages;
   const allMessages = [{ role: 'system', content: SYSTEM_PROMPT }, ...trimmed];
 
-  let text = await kimiChat({ messages: allMessages });
+  let text = await openaiChat({ messages: allMessages });
   let parsed = parseJson(text);
 
   if (!parsed) {
     console.warn('[pricingAgent] non-JSON, retrying. Raw:', text.slice(0, 200));
-    text = await kimiChat({
+    text = await openaiChat({
       messages: [
         ...allMessages,
         { role: 'assistant', content: text },

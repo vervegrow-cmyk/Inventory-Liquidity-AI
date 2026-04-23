@@ -27,19 +27,19 @@ function parseJson(text) {
   return null;
 }
 
-async function kimiChat({ model = 'moonshot-v1-8k', messages, retries = 2 }) {
+async function openaiChat({ model = 'gpt-4o-mini', messages, retries = 2 }) {
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, 1500 * attempt));
     try {
-      const res = await fetch('https://api.moonshot.cn/v1/chat/completions', {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.KIMI_API_KEY}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
         body: JSON.stringify({ model, messages }),
       });
       if (!res.ok) {
         const err = await res.text();
-        lastErr = new Error(`Kimi API error (${res.status}): ${err.slice(0, 200)}`);
+        lastErr = new Error(`OpenAI API error (${res.status}): ${err.slice(0, 200)}`);
         if (res.status >= 500 && attempt < retries) continue;
         throw lastErr;
       }
@@ -63,8 +63,8 @@ async function handleIdentify(req, res) {
   try {
     let parsed;
     if (image) {
-      const raw = await kimiChat({
-        model: 'moonshot-v1-8k-vision-preview',
+      const raw = await openaiChat({
+        model: 'gpt-4o',
         messages: [
           { role: 'system', content: '你是商品识别专家。只返回合法 JSON，不要任何解释文字。' },
           { role: 'user', content: [
@@ -75,7 +75,7 @@ async function handleIdentify(req, res) {
       });
       parsed = parseJson(raw);
     } else {
-      const raw = await kimiChat({
+      const raw = await openaiChat({
         messages: [
           { role: 'system', content: '你是商品识别专家。只返回合法 JSON，不要任何解释文字。' },
           { role: 'user', content: `以下是商品表格数据，识别商品信息，返回 JSON：{"name":"商品名称","category":"类别","brand":"品牌"}\n\n${text}` },
@@ -163,10 +163,10 @@ async function handlePricing(req, res) {
   try {
     const trimmed = messages.length > 9 ? [messages[0], ...messages.slice(-8)] : messages;
     const allMessages = [{ role: 'system', content: PRICING_SYSTEM }, ...trimmed];
-    let text = await kimiChat({ messages: allMessages });
+    let text = await openaiChat({ messages: allMessages });
     let parsed = parseJson(text);
     if (!parsed) {
-      text = await kimiChat({ messages: [
+      text = await openaiChat({ messages: [
         ...allMessages,
         { role: 'assistant', content: text },
         { role: 'user', content: '请严格按照JSON格式回复，只输出JSON，不要任何其他文字。' },
