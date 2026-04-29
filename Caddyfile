@@ -1,0 +1,15 @@
+:{$PORT:3000} {
+	encode gzip
+
+	root * dist
+
+	@static {
+		file
+		path /assets/*
+	}
+	header @static Cache-Control "public, max-age=31536000, immutable"
+
+	try_files {path} /index.html
+
+	file_server
+}
