@@ -183,7 +183,7 @@ export function AdminDashboard() {
           <StatCard title="待估价" value={statistics.new} icon="📬" color="bg-amber-50 border-amber-100" highlight={statistics.new > 0} />
           <StatCard title="已出价" value={statistics.quoted} icon="💡" color="bg-indigo-50 border-indigo-100" />
           <StatCard title="已接受" value={statistics.accepted} icon="🤝" color="bg-emerald-50 border-emerald-100" />
-          <StatCard title="总估值" value={`¥${(statistics.totalValue / 10000).toFixed(1)}万`} icon="💰" color="bg-violet-50 border-violet-100" />
+          <StatCard title="总估值" value={`$${(statistics.totalValue / 1000).toFixed(1)}k`} icon="💰" color="bg-violet-50 border-violet-100" />
         </div>
 
         {/* Toolbar */}
@@ -344,7 +344,7 @@ function DirectoryView({
                     <span className="text-slate-300">·</span>
                     <span className="text-[10px] text-slate-500">{g.totalProducts}件商品</span>
                     <span className="text-slate-300">·</span>
-                    <span className="text-[10px] font-semibold text-violet-600">¥{g.totalValue.toLocaleString()}</span>
+                    <span className="text-[10px] font-semibold text-violet-600">${g.totalValue.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -440,7 +440,7 @@ function CustomerInquiryPanel({ customer, expandedInquiries, onToggleInquiry, on
             </div>
             <div className="w-px h-8 bg-slate-200" />
             <div>
-              <p className="text-xl font-bold text-violet-700">¥{customer.totalValue.toLocaleString()}</p>
+              <p className="text-xl font-bold text-violet-700">${customer.totalValue.toLocaleString()}</p>
               <p className="text-xs text-slate-400">总估值</p>
             </div>
           </div>
@@ -514,7 +514,7 @@ function CustomerInquiryPanel({ customer, expandedInquiries, onToggleInquiry, on
                         )}
                       </div>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        {products.length} 件商品 · 估值 <span className="font-semibold text-violet-700">¥{(inq.estimatedTotal ?? 0).toLocaleString()}</span>
+                        {products.length} 件商品 · 估值 <span className="font-semibold text-violet-700">${(inq.estimatedTotal ?? 0).toLocaleString()}</span>
                       </p>
                     </div>
                     {/* Thumbnail strip */}
@@ -626,7 +626,7 @@ function CustomerInquiryPanel({ customer, expandedInquiries, onToggleInquiry, on
                   <p className="text-[10px] text-slate-400 truncate">{p.category}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     {p.count > 1 && <span className="text-[10px] text-blue-600 font-semibold">×{p.count}</span>}
-                    {p.totalPrice > 0 && <span className="text-[10px] font-bold text-violet-700">¥{p.totalPrice.toLocaleString()}</span>}
+                    {p.totalPrice > 0 && <span className="text-[10px] font-bold text-violet-700">${p.totalPrice.toLocaleString()}</span>}
                     <span className="text-[10px] text-slate-400">{p.inquiryIds.length}次询价</span>
                   </div>
                 </div>
@@ -676,7 +676,7 @@ function ProductCard({ product }: { product: NormalizedProduct }) {
         <div className="flex items-center justify-between mt-auto pt-2">
           <span className="text-[10px] text-slate-400">×{_qty}</span>
           <span className={`text-sm font-bold ${_price > 0 ? 'text-violet-700' : 'text-slate-400'}`}>
-            {_price > 0 ? `¥${_price.toLocaleString()}` : '待估价'}
+            {_price > 0 ? `$${_price.toLocaleString()}` : '待估价'}
           </span>
         </div>
 
@@ -729,7 +729,7 @@ function PricingBreakdownPanel({ reason }: { reason: PricingBreakdown | string }
             row.value > 0 && !row.highlight ? 'text-emerald-600' :
             'text-slate-700'
           }>
-            {row.value > 0 && !row.highlight ? '+' : ''}¥{Math.abs(row.value).toLocaleString()}
+            {row.value > 0 && !row.highlight ? '+' : ''}${Math.abs(row.value).toLocaleString()}
           </span>
         </div>
       ))}
@@ -748,7 +748,7 @@ function InquirySummaryBar({ productCount, totalValue, status }: { productCount:
       </div>
       <div className="w-px h-3 bg-slate-300" />
       <div className="flex items-center gap-1.5 text-xs text-slate-600">
-        总估值 <span className="font-bold text-violet-700">¥{totalValue.toLocaleString()}</span>
+        总估值 <span className="font-bold text-violet-700">${totalValue.toLocaleString()}</span>
       </div>
       <div className="w-px h-3 bg-slate-300" />
       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${INQUIRY_STATUS_COLORS[status]}`}>
@@ -822,7 +822,7 @@ function ListView({ inquiries, onView, onStatusChange }: ListViewProps) {
                       )}
                     </div>
                   </td>
-                  <td className="px-5 py-3.5 font-bold text-violet-700 text-sm">¥{(inq.estimatedTotal ?? 0).toLocaleString()}</td>
+                  <td className="px-5 py-3.5 font-bold text-violet-700 text-sm">${(inq.estimatedTotal ?? 0).toLocaleString()}</td>
                   <td className="px-5 py-3.5">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${INQUIRY_STATUS_COLORS[inq.status]}`}>
                       {INQUIRY_STATUS_LABELS[inq.status]}

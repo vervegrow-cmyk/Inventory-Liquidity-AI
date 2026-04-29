@@ -222,7 +222,7 @@ function CustomerCard({ customer: g, isSelected, onClick }: {
             <span className="text-xs text-slate-400">{g.inquiries.length}次询价</span>
             <span className="text-slate-300 text-xs">|</span>
             <span className="text-xs font-semibold text-violet-600">
-              ¥{g.totalValue.toLocaleString()}
+              ${g.totalValue.toLocaleString()}
             </span>
             {g.pendingRecoveryCount > 0 && (
               <span className="ml-auto text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-semibold">
@@ -298,7 +298,7 @@ function CustomerInquiryPanel({
             </div>
             <div className="w-px h-8 bg-slate-200" />
             <div>
-              <p className="text-xl font-bold text-violet-700">¥{customer.totalValue.toLocaleString()}</p>
+              <p className="text-xl font-bold text-violet-700">${customer.totalValue.toLocaleString()}</p>
               <p className="text-xs text-slate-400">总估值</p>
             </div>
           </div>
@@ -343,7 +343,7 @@ function CustomerInquiryPanel({
                     <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
                       <span>{products.length} 件商品</span>
                       <span className="text-slate-300">|</span>
-                      <span className="font-semibold text-violet-700">¥{(inq.estimatedTotal ?? 0).toLocaleString()}</span>
+                      <span className="font-semibold text-violet-700">${(inq.estimatedTotal ?? 0).toLocaleString()}</span>
                     </p>
                   </div>
                   <div className="flex -space-x-1.5 flex-shrink-0">
@@ -405,7 +405,7 @@ function CustomerInquiryPanel({
                   <p className="text-[10px] text-slate-400 truncate">{p.category}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     {p.count > 1 && <span className="text-[10px] text-blue-600 font-semibold">×{p.count}</span>}
-                    {p.totalPrice > 0 && <span className="text-[10px] font-bold text-violet-700">¥{p.totalPrice.toLocaleString()}</span>}
+                    {p.totalPrice > 0 && <span className="text-[10px] font-bold text-violet-700">${p.totalPrice.toLocaleString()}</span>}
                     <span className="text-[10px] text-slate-400">{p.inquiryIds.length}次询价</span>
                   </div>
                 </div>
@@ -429,7 +429,7 @@ function MiniProductCard({ product }: { product: NP }) {
         <p className="text-xs font-semibold text-slate-900 truncate">{product._title}</p>
         <div className="flex items-center justify-between mt-1">
           <span className="text-[10px] text-slate-400">×{product._qty}</span>
-          <span className={`text-sm font-bold ${product._price > 0 ? 'text-violet-700' : 'text-slate-400'}`}>{product._price > 0 ? `¥${product._price.toLocaleString()}` : '待估价'}</span>
+          <span className={`text-sm font-bold ${product._price > 0 ? 'text-violet-700' : 'text-slate-400'}`}>{product._price > 0 ? `$${product._price.toLocaleString()}` : '待估价'}</span>
         </div>
       </div>
     </div>

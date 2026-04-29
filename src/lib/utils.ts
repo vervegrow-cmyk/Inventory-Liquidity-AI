@@ -16,8 +16,8 @@ export function parseJson(text: string): Record<string, unknown> | null {
 }
 
 /**
- * Parse a price string (possibly a range like "¥28-33") to a number.
- * For ranges, returns the midpoint. Strips ¥, $, commas, spaces.
+ * Parse a price string (possibly a range like "$28-33") to a number.
+ * For ranges, returns the midpoint. Strips $, ¥, commas, spaces.
  */
 export function parsePrice(s: string | number | undefined | null): number {
   if (s === null || s === undefined) return 0;

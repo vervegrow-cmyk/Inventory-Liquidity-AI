@@ -107,7 +107,7 @@ export function InquiryDetailPage({ inquiry, onBack, onStatusChange, onDelete }:
           </div>
           <div className="text-right">
             <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest">总估值</p>
-            <p className="text-2xl font-bold text-violet-700">¥{(inquiry.estimatedTotal ?? 0).toLocaleString()}</p>
+            <p className="text-2xl font-bold text-violet-700">${(inquiry.estimatedTotal ?? 0).toLocaleString()}</p>
           </div>
         </div>
 
@@ -251,7 +251,7 @@ function ProductDetailCard({ product }: { product: NP }) {
         <div className="flex items-center justify-between mt-1.5">
           <span className="text-xs text-slate-500">×{qty}</span>
           <span className={`text-sm font-bold ${price > 0 ? 'text-violet-700' : 'text-slate-400'}`}>
-            {price > 0 ? `¥${price.toLocaleString()}` : '待估价'}
+            {price > 0 ? `$${price.toLocaleString()}` : '待估价'}
           </span>
         </div>
 
@@ -303,7 +303,7 @@ function PricingBreakdownPanel({ reason }: { reason: PricingBreakdown | string }
             row.type === 'negative' ? 'text-red-600' :
             row.type === 'positive' ? 'text-emerald-600' : 'text-slate-700'
           }>
-            {row.value > 0 && row.type !== 'highlight' ? '+' : ''}¥{Math.abs(row.value).toLocaleString()}
+            {row.value > 0 && row.type !== 'highlight' ? '+' : ''}${Math.abs(row.value).toLocaleString()}
           </span>
         </div>
       ))}

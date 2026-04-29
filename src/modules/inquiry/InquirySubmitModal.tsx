@@ -90,7 +90,7 @@ export function InquirySubmitModal({ products, estimatedTotal, onClose, onSubmit
         <div className="bg-[#0f172a] px-5 py-4 flex items-center justify-between sticky top-0 rounded-t-2xl">
           <div>
             <p className="text-white font-bold text-sm">提交清仓询价</p>
-            <p className="text-slate-400 text-xs mt-0.5">{products.length} 件商品 · 总估价 ¥{estimatedTotal.toLocaleString()}</p>
+            <p className="text-slate-400 text-xs mt-0.5">{products.length} 件商品 · 总估价 ${estimatedTotal.toLocaleString()}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white text-xl leading-none">✕</button>
         </div>
@@ -107,7 +107,7 @@ export function InquirySubmitModal({ products, estimatedTotal, onClose, onSubmit
                 )}
                 {p.estimatedPrice != null && p.estimatedPrice > 0 && (
                   <span className="absolute -bottom-1 -right-1 text-[9px] bg-violet-600 text-white px-1 py-0.5 rounded-full font-bold leading-none">
-                    {typeof p.estimatedPrice === 'number' ? p.estimatedPrice.toLocaleString() : String(p.estimatedPrice).replace('¥', '')}
+                    {typeof p.estimatedPrice === 'number' ? p.estimatedPrice.toLocaleString() : String(p.estimatedPrice).replace('$', '')}
                   </span>
                 )}
               </div>

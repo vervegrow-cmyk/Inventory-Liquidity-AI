@@ -25,48 +25,48 @@ describe('parsePrice', () => {
   });
 
   // ── Plain price strings ───────────────────────────────────────────────────
-  it('strips ¥ and parses integer', () => {
-    expect(parsePrice('¥30')).toBe(30);
+  it('strips $ and parses integer', () => {
+    expect(parsePrice('$30')).toBe(30);
   });
 
-  it('strips $ and parses integer', () => {
-    expect(parsePrice('$28')).toBe(28);
+  it('strips ¥ and parses integer (backward compat)', () => {
+    expect(parsePrice('¥28')).toBe(28);
   });
 
   it('strips commas from thousand-separated value', () => {
-    expect(parsePrice('¥1,200')).toBe(1200);
+    expect(parsePrice('$1,200')).toBe(1200);
   });
 
   it('parses decimal price', () => {
-    expect(parsePrice('¥30.5')).toBe(30.5);
+    expect(parsePrice('$30.5')).toBe(30.5);
   });
 
   // ── Range strings (the core bug fix) ─────────────────────────────────────
-  it('returns midpoint for "¥28-33"', () => {
-    // Regression: old code → parseFloat("2833") = 2833, displayed as ¥2,833
-    expect(parsePrice('¥28-33')).toBe(30.5);
+  it('returns midpoint for "$28-33"', () => {
+    // Regression: old code → parseFloat("2833") = 2833, displayed as $2,833
+    expect(parsePrice('$28-33')).toBe(30.5);
   });
 
   it('returns midpoint for range without currency symbol', () => {
     expect(parsePrice('28-33')).toBe(30.5);
   });
 
-  it('returns midpoint for range with $ symbol', () => {
-    expect(parsePrice('$10-20')).toBe(15);
+  it('returns midpoint for range with ¥ symbol (backward compat)', () => {
+    expect(parsePrice('¥10-20')).toBe(15);
   });
 
   it('handles range where both bounds are equal', () => {
-    expect(parsePrice('¥50-50')).toBe(50);
+    expect(parsePrice('$50-50')).toBe(50);
   });
 
-  it('handles decimal range "¥28.5-33.5"', () => {
-    expect(parsePrice('¥28.5-33.5')).toBe(31);
+  it('handles decimal range "$28.5-33.5"', () => {
+    expect(parsePrice('$28.5-33.5')).toBe(31);
   });
 
   // ── Comma-separated thousands inside range ────────────────────────────────
-  it('parses "¥1,000-2,000" range with commas correctly', () => {
+  it('parses "$1,000-2,000" range with commas correctly', () => {
     // After stripping commas: "1000-2000" → midpoint 1500
-    expect(parsePrice('¥1,000-2,000')).toBe(1500);
+    expect(parsePrice('$1,000-2,000')).toBe(1500);
   });
 
   // ── Strings that are not valid ranges ─────────────────────────────────────

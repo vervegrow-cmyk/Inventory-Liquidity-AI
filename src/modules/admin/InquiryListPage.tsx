@@ -75,7 +75,7 @@ function InquiryRow({
           {firstThumb && <img src={firstThumb} alt="" className="w-6 h-6 rounded-md border border-slate-200 object-cover ml-1" />}
         </div>
       </td>
-      <td className="px-5 py-3.5 font-bold text-violet-700 text-sm">¥{(inq.estimatedTotal ?? 0).toLocaleString()}</td>
+      <td className="px-5 py-3.5 font-bold text-violet-700 text-sm">${(inq.estimatedTotal ?? 0).toLocaleString()}</td>
       <td className="px-5 py-3.5">
         <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${INQUIRY_STATUS_COLORS[inq.status]}`}>
           {INQUIRY_STATUS_LABELS[inq.status]}

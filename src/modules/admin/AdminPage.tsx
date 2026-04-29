@@ -126,7 +126,7 @@ export function AdminPage({ onBack }: Props) {
                     </div>
                     <div>
                       <p className="text-[9px] text-slate-400 font-semibold uppercase">总估价</p>
-                      <p className="text-sm font-bold text-violet-700">¥{inquiry.estimatedTotal.toLocaleString()}</p>
+                      <p className="text-sm font-bold text-violet-700">${inquiry.estimatedTotal.toLocaleString()}</p>
                     </div>
                     <div className="ml-auto">
                       <p className="text-[10px] text-slate-400">{new Date(inquiry.createdAt).toLocaleDateString('zh-CN')}</p>

@@ -144,8 +144,8 @@ export function AdminLayout() {
               <StatBadge label="已完成" value={statistics.completed} cls="bg-slate-50 text-slate-500" />
               <span className="ml-auto text-xs font-bold text-violet-700 flex items-center gap-1">
                 <span className="text-[10px] text-slate-400 font-normal">总估值</span>
-                ¥{statistics.totalValue >= 10000
-                  ? `${(statistics.totalValue / 10000).toFixed(1)}万`
+                ${statistics.totalValue >= 1000
+                  ? `${(statistics.totalValue / 1000).toFixed(1)}k`
                   : statistics.totalValue.toLocaleString()}
               </span>
               <button
