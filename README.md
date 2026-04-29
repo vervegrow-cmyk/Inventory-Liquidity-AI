@@ -1,26 +1,40 @@
 # Inventory Liquidity AI
 
-> AI 驱动的库存估价工具，专为清仓、滞销、二手、闲置商品设计。
+> AI 驱动的库存回收估价工具，专为清仓、滞销、二手、闲置商品设计。
 
 ![React](https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite_8-646CFF?style=flat-square&logo=vite&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
-![Version](https://img.shields.io/badge/version-0.0.1-brightgreen?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.2.3-brightgreen?style=flat-square)
 
 ---
 
 ## 功能概览
 
-### 前台：AI 估价
+### 前台：AI 估价对话
 
-上传商品图片、视频或 Excel 表格，AI 自动识别后通过多轮对话了解商品详情，输出三维估价结果。
+上传商品图片、视频或 Excel 表格，AI 自动识别商品后，最多 2 轮对话给出精确报价。
 
-| 估价维度 | 说明 |
+**定价模型：倒推定价法（成本倒推）**
+
+| 步骤 | 说明 |
+|------|------|
+| ① 查竞品价 M | 参考 eBay + Temu 同款最低在售价（美元） |
+| ② 计算目标售价 SP | SP = M × 50%（低于竞品五折才有竞争力） |
+| ③ 估算固定运营成本 | 按商品体积分档：小件 $16 / 中件 $27 / 大件 $58 |
+| ④ 倒推最高收货价 B_max | B_max = SP × 0.55 − 固定成本 |
+| ⑤ 按成色 & 数量出价 | 乘以成色系数（0.2 ~ 1.0）和数量系数 |
+
+**三维报价结果（均为美元 $）：**
+
+| 报价维度 | 说明 |
 |----------|------|
-| 收货价 | 建议收购入手价格 |
-| 转售价 | 正常渠道转卖的预期价格 |
-| 快速出货价 | 需要快速变现时的建议价格 |
+| 收货价（estimated_price） | 建议收购价，按成色 + 数量计算 |
+| 快速出货价（quick_sale_price） | 急变现时的保守报价（收货价 × 70%） |
+| 转售参考价（resale_price） | 我们预期的目标出售价（= SP） |
+
+> 若 B_max ≤ $2，系统判定成本倒挂，自动拒收并说明原因。
 
 **支持的输入格式：**
 
@@ -56,6 +70,11 @@ npm install
 
 ```bash
 # 创建 .env 文件
+
+# 必填：AI 定价对话
+OPENAI_API_KEY=你的_OpenAI_API_Key
+
+# 可选：商品图像识别（Kimi 视觉）
 KIMI_API_KEY=你的_Kimi_API_Key
 
 # 可选：持久化存储（不配置则使用内存存储，重启后数据重置）
@@ -63,7 +82,7 @@ UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your_token
 ```
 
-> 获取 Kimi API Key：[platform.moonshot.cn](https://platform.moonshot.cn) → API Keys
+> 获取 OpenAI API Key：[platform.openai.com](https://platform.openai.com) → API Keys
 
 ### 3. 启动
 
@@ -83,15 +102,15 @@ npm run dev
 Inventory-Liquidity-AI/
 │
 ├── skills/                     # AI 能力层（原子操作）
-│   ├── kimiClient.js           #   Kimi API 基础调用封装
-│   ├── kimiVision.js           #   图像 / 文本商品识别
-│   └── kimiGenerate.js         #   自由内容生成
+│   ├── openaiClient.js         #   OpenAI API 封装（gpt-4o-mini / gpt-4o）
+│   ├── kimiVision.js           #   Kimi 图像 / 文本商品识别
+│   └── kimiClient.js           #   Kimi API 基础调用
 │
 ├── agents/                     # AI 流程编排层
-│   ├── pricingAgent.js         #   多轮定价对话流程
+│   ├── pricingAgent.js         #   倒推定价法多轮对话
 │   └── identifyAgent.js        #   识别任务分发
 │
-├── features/                   # 业务模块（controller + service）
+├── features/                   # 业务模块
 │   ├── pricing/
 │   ├── identify/
 │   ├── inquiry/
@@ -100,39 +119,26 @@ Inventory-Liquidity-AI/
 │   └── recovery/
 │
 ├── api/                        # Vercel Serverless Functions
-│   ├── _lib/
-│   │   └── upstash.js          #   Redis / 内存存储适配层
+│   ├── _lib/upstash.js         #   Redis / 内存存储适配层
 │   ├── _handlers/
-│   │   ├── auth.js             #   登录 / 登出 / 验证
-│   │   ├── inquiry.js          #   询价 CRUD + 物流
-│   │   └── ai.js               #   AI 识别 / 定价
-│   ├── auth/[action].js        #   → login, logout, verify, register
-│   ├── inquiry/[action].js     #   → create, list, get, update, update-status, delete, statistics
-│   ├── logistics/select.js     #   物流方式选择
-│   ├── pricing/calculate.js    #   AI 定价
-│   └── identify/analyze.js     #   AI 识别
+│   │   ├── auth.js
+│   │   ├── inquiry.js
+│   │   └── ai.js
+│   ├── auth/[action].js        #   login, logout, verify, register
+│   ├── inquiry/[action].js     #   create, list, get, update, update-status, delete, statistics
+│   ├── logistics/select.js
+│   └── ai/[action].js          #   identify, pricing
 │
 ├── dev-server.js               # 本地开发 HTTP 服务器
 │
 └── src/                        # 前端（React + TypeScript）
     ├── modules/
     │   ├── admin/              #   后台管理页面
-    │   │   ├── AdminLayout.tsx
-    │   │   ├── AdminDashboard.tsx
-    │   │   ├── InquiryListPage.tsx
-    │   │   ├── InquiryDetailPage.tsx
-    │   │   ├── CustomersPage.tsx
-    │   │   └── LoginPage.tsx
     │   ├── auth/
-    │   └── inquiry/
-    ├── services/
-    │   ├── authApi.ts
-    │   ├── inquiryApi.ts
-    │   ├── pricingApi.ts
-    │   └── identifyApi.ts
-    ├── stores/
-    │   ├── authStore.ts
-    │   └── notesStore.ts
+    │   ├── inquiry/
+    │   └── recovery/
+    ├── services/               #   API 调用层
+    ├── stores/                 #   Zustand 状态管理
     └── App.tsx
 ```
 
@@ -151,8 +157,8 @@ Inventory-Liquidity-AI/
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/identify/analyze` | 商品识别（图片 / 文本） |
-| POST | `/api/pricing/calculate` | 多轮定价对话 |
+| POST | `/api/ai/identify` | 商品识别（图片 / 文本） |
+| POST | `/api/ai/pricing` | 多轮定价对话 |
 
 ### 询价接口
 
@@ -183,7 +189,7 @@ Inventory-Liquidity-AI/
 
 1. 推送代码到 GitHub
 2. 在 [vercel.com](https://vercel.com) 导入仓库
-3. 添加环境变量 `KIMI_API_KEY`
+3. 添加环境变量 `OPENAI_API_KEY`
 4. 点击部署
 
 > 详细步骤见 [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md)
@@ -192,8 +198,9 @@ Inventory-Liquidity-AI/
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
-| `KIMI_API_KEY` | 是 | Moonshot AI API Key |
-| `UPSTASH_REDIS_REST_URL` | 否 | 持久化存储（不填则用内存） |
+| `OPENAI_API_KEY` | 是 | OpenAI API Key（定价对话，gpt-4o-mini） |
+| `KIMI_API_KEY` | 否 | Moonshot Kimi API Key（图像识别） |
+| `UPSTASH_REDIS_REST_URL` | 否 | 持久化存储 URL |
 | `UPSTASH_REDIS_REST_TOKEN` | 否 | 持久化存储 Token |
 
 ---
@@ -201,10 +208,12 @@ Inventory-Liquidity-AI/
 ## 可用命令
 
 ```bash
-npm run dev      # 启动开发服务器（前端 :5173 + API :3001）
-npm run build    # TypeScript 编译 + Vite 构建
-npm run preview  # 预览生产构建
-npm run lint     # ESLint 检查
+npm run dev           # 启动开发服务器（前端 :5173 + API :3001）
+npm run build         # TypeScript 编译 + Vite 构建
+npm run preview       # 预览生产构建
+npm run lint          # ESLint 检查
+npm run test          # 运行单元测试
+npm run test:coverage # 测试覆盖率报告
 ```
 
 ---
@@ -213,7 +222,7 @@ npm run lint     # ESLint 检查
 
 - `.env` 已加入 `.gitignore`，API Key 不会提交到仓库
 - 所有 AI 调用在服务端执行，Key 不暴露到前端
-- 管理后台需要登录验证，默认账号 `admin` / `123456`（生产环境请修改）
+- 管理后台需登录验证，默认账号 `admin` / `123456`（生产环境请修改）
 
 ---
 
